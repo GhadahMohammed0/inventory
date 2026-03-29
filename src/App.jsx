@@ -26,7 +26,7 @@ function ProtectedRoute({ children, adminOnly = false }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#020617' }}>
+      <div className="flex min-h-screen items-center justify-center bg-dark-950">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
           <p className="text-slate-400 text-sm font-tajawal">جاري التحميل...</p>
@@ -52,7 +52,7 @@ function PublicRoute({ children }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#020617' }}>
+      <div className="flex min-h-screen items-center justify-center bg-dark-950">
         <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
       </div>
     );
@@ -67,19 +67,14 @@ function PublicRoute({ children }) {
 
 function App() {
   return (
-    <BrowserRouter >
+    <BrowserRouter>
       <AuthProvider>
         <CartProvider>
           <Toaster
             position="top-center"
             toastOptions={{
-              style: {
-                background: '#1e293b',
-                color: '#f1f5f9',
-                border: '1px solid rgba(148, 163, 184, 0.1)',
-                fontFamily: "'Tajawal', sans-serif",
-                direction: 'rtl',
-              },
+              className:
+                '!rounded-2xl !border !border-white/10 !bg-slate-800 !text-slate-100 !font-tajawal !shadow-xl !backdrop-blur-md [direction:rtl]',
               success: {
                 iconTheme: {
                   primary: '#22c55e',

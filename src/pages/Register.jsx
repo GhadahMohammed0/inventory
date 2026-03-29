@@ -55,74 +55,25 @@ export default function Register() {
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4"
-      style={{
-        background:
-          "linear-gradient(135deg, #020617 0%, #0f172a 50%, #1e1b4b 100%)",
-      }}
-    >
-      {/* Background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div
-          className="absolute -top-40 -right-40 w-80 h-80 rounded-full"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%)",
-          }}
-        />
-        <div
-          className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(14,165,233,0.1) 0%, transparent 70%)",
-          }}
-        />
+    <div className="flex min-h-screen items-center justify-center bg-[linear-gradient(135deg,#020617_0%,#0f172a_50%,#1e1b4b_100%)] px-4 py-10 sm:px-6">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -right-40 -top-40 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(99,102,241,0.15)_0%,transparent_70%)]" />
+        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(14,165,233,0.1)_0%,transparent_70%)]" />
       </div>
 
-      <div className="w-full max-w-md relative animate-fade-in">
-        {/* Logo */}
-        <div className="text-center">
-          <div
-            className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-            style={{
-              background: "linear-gradient(135deg, #6366f1, #0ea5e9)",
-              boxShadow: "0 8px 32px rgba(99, 102, 241, 0.3)",
-            }}
-          >
+      <div className="relative w-full max-w-md animate-fade-in">
+        <div className="mb-6 space-y-3 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#6366f1,#0ea5e9)] shadow-[0_8px_32px_rgba(99,102,241,0.3)]">
             <HiOutlineChartBar size={32} className="text-white" />
           </div>
-
-          <h1 className="text-3xl font-bold text-white absolute top-2 right-5 left-1">
-            إنشاء حساب
-          </h1>
-
-          <p className="text-slate-400" style={{ margin: 5 }}>
-            سجل كمهندس للمتابعة
-          </p>
+          <h1 className="text-3xl font-bold text-white sm:text-4xl">إنشاء حساب</h1>
+          <p className="text-slate-400">سجل كمهندس للمتابعة</p>
         </div>
 
-        {/* Form */}
-        <div
-          className="pt-8 rounded-2xl"
-          style={{
-            background: "rgba(30, 41, 59, 0.5)",
-            border: "1px solid rgba(148, 163, 184, 0.1)",
-            backdropFilter: "blur(20px)",
-            padding: 10,
-          }}
-        >
-          <form
-            onSubmit={handleSubmit}
-            dir="rtl"
-            className="flex flex-col gap-5"
-          >
-            {/* Name */}
+        <div className="glass-card rounded-2xl px-4 py-6 sm:px-6 sm:py-8">
+          <form onSubmit={handleSubmit} dir="rtl" className="flex flex-col gap-5">
             <div>
-              <label
-                className="block text-sm font-medium text-slate-300"
-                style={{ margin: 4 }}
-              >
+              <label className="mb-1.5 block text-sm font-medium text-slate-300">
                 الاسم الكامل
               </label>
               <div className="relative">
@@ -140,12 +91,8 @@ export default function Register() {
               </div>
             </div>
 
-            {/* Email */}
             <div>
-              <label
-                className="block text-sm font-medium text-slate-300"
-                style={{ margin: 4 }}
-              >
+              <label className="mb-1.5 block text-sm font-medium text-slate-300">
                 البريد الإلكتروني
               </label>
               <div className="relative">
@@ -163,12 +110,8 @@ export default function Register() {
               </div>
             </div>
 
-            {/* Phone */}
             <div>
-              <label
-                className="block text-sm font-medium text-slate-300"
-                style={{ margin: 4 }}
-              >
+              <label className="mb-1.5 block text-sm font-medium text-slate-300">
                 رقم الهاتف
               </label>
               <div className="relative">
@@ -186,12 +129,8 @@ export default function Register() {
               </div>
             </div>
 
-            {/* Password */}
             <div>
-              <label
-                className="block text-sm font-medium text-slate-300"
-                style={{ margin: 4 }}
-              >
+              <label className="mb-1.5 block text-sm font-medium text-slate-300">
                 كلمة المرور
               </label>
               <div className="relative">
@@ -209,12 +148,8 @@ export default function Register() {
               </div>
             </div>
 
-            {/* Confirm Password */}
             <div>
-              <label
-                className="block text-sm font-medium text-slate-300"
-                style={{ margin: 4 }}
-              >
+              <label className="mb-1.5 block text-sm font-medium text-slate-300">
                 تأكيد كلمة المرور
               </label>
               <div className="relative">
@@ -235,11 +170,11 @@ export default function Register() {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full justify-center py-3 text-base mt-2"
+              className="btn-primary mt-2 w-full justify-center py-3 text-base"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24">
                     <circle
                       cx="12"
                       cy="12"
@@ -261,12 +196,12 @@ export default function Register() {
             </button>
           </form>
 
-          <div className="mt-6 text-center" style={{ marginTop: 6 }}>
-            <p className="text-slate-400 text-sm">
+          <div className="mt-6 text-center">
+            <p className="text-sm text-slate-400">
               لديك حساب؟{" "}
               <Link
                 to="/login"
-                className="text-indigo-400 hover:text-indigo-300 font-medium"
+                className="font-medium text-indigo-400 hover:text-indigo-300"
               >
                 تسجيل الدخول
               </Link>

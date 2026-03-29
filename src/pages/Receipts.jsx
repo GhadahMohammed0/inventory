@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
-import { collection, addDoc, doc, getDocs, updateDoc } from 'firebase/firestore';
-import toast from 'react-hot-toast';
+import { useEffect, useRef, useState } from "react";
+import { collection, addDoc, doc, getDocs, updateDoc } from "firebase/firestore";
+import toast from "react-hot-toast";
 import {
   HiOutlineDocumentText,
   HiOutlineEye,
   HiOutlinePlus,
   HiOutlinePrinter,
   HiOutlineX,
-} from 'react-icons/hi';
-import { db } from '../firebase';
+} from "react-icons/hi";
+import { db } from "../firebase";
 
 export default function Receipts() {
   const [receipts, setReceipts] = useState([]);
@@ -16,46 +16,70 @@ export default function Receipts() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showReceipt, setShowReceipt] = useState(null);
-  const [selectedOrderId, setSelectedOrderId] = useState('');
+  const [selectedOrderId, setSelectedOrderId] = useState("");
   const [formData, setFormData] = useState({
-    engineerName: '',
+    engineerName: "",
     items: [],
-    notes: '',
+    notes: "",
   });
   const receiptRef = useRef();
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  async function fetchReceiptData() {
+    const [receiptsSnap, ordersSnap] = await Promise.all([
+      getDocs(collection(db, "receipts")),
+      getDocs(collection(db, "orders")),
+    ]);
 
-  const fetchData = async () => {
+    return {
+      receipts: receiptsSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          const dateA = a.createdAt || "";
+          const dateB = b.createdAt || "";
+          return dateB.localeCompare(dateA);
+        }),
+      orders: ordersSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((order) => order.status === "approved"),
+    };
+  }
+
+  async function refreshData() {
     try {
-      const [receiptsSnap, ordersSnap] = await Promise.all([
-        getDocs(collection(db, 'receipts')),
-        getDocs(collection(db, 'orders')),
-      ]);
-
-      setReceipts(
-        receiptsSnap.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
-          .sort((a, b) => {
-            const dateA = a.createdAt || '';
-            const dateB = b.createdAt || '';
-            return dateB.localeCompare(dateA);
-          })
-      );
-
-      setOrders(
-        ordersSnap.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
-          .filter((order) => order.status === 'approved')
-      );
+      const data = await fetchReceiptData();
+      setReceipts(data.receipts);
+      setOrders(data.orders);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error("Error fetching data:", error);
     }
 
     setLoading(false);
-  };
+  }
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadData() {
+      try {
+        const data = await fetchReceiptData();
+        if (!isMounted) return;
+        setReceipts(data.receipts);
+        setOrders(data.orders);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleOrderSelect = (orderId) => {
     setSelectedOrderId(orderId);
@@ -63,9 +87,9 @@ export default function Receipts() {
 
     if (order) {
       setFormData({
-        engineerName: order.engineerName || '',
+        engineerName: order.engineerName || "",
         items: order.items || [],
-        notes: '',
+        notes: "",
       });
     }
   };
@@ -74,7 +98,7 @@ export default function Receipts() {
     event.preventDefault();
 
     if (!selectedOrderId || formData.items.length === 0) {
-      toast.error('Please select an approved order');
+      toast.error("يرجى اختيار طلب معتمد");
       return;
     }
 
@@ -88,24 +112,29 @@ export default function Receipts() {
         createdAt: new Date().toISOString(),
       };
 
-      await addDoc(collection(db, 'receipts'), receiptData);
-      await updateDoc(doc(db, 'orders', selectedOrderId), {
-        status: 'completed',
+      await addDoc(collection(db, "receipts"), receiptData);
+      await updateDoc(doc(db, "orders", selectedOrderId), {
+        status: "completed",
       });
 
-      toast.success('Receipt created successfully');
+      toast.success("تم إنشاء الفاتورة بنجاح");
       setShowModal(false);
-      setSelectedOrderId('');
-      setFormData({ engineerName: '', items: [], notes: '' });
-      fetchData();
+      setSelectedOrderId("");
+      setFormData({ engineerName: "", items: [], notes: "" });
+      await refreshData();
     } catch (error) {
-      console.error('Error creating receipt:', error);
-      toast.error('Failed to create receipt');
+      console.error("Error creating receipt:", error);
+      toast.error("فشل إنشاء الفاتورة");
     }
   };
 
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open("", "_blank");
+
+    if (!printWindow) {
+      toast.error("تعذر فتح نافذة الطباعة");
+      return;
+    }
 
     printWindow.document.write(`
       <html dir="rtl">
@@ -124,7 +153,7 @@ export default function Receipts() {
           </style>
         </head>
         <body>
-          ${receiptRef.current?.innerHTML || ''}
+          ${receiptRef.current?.innerHTML || ""}
           <script>window.print(); window.close();</script>
         </body>
       </html>
@@ -132,12 +161,12 @@ export default function Receipts() {
   };
 
   const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
+    if (!dateStr) return "-";
 
-    return new Date(dateStr).toLocaleDateString('ar-SA', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+    return new Date(dateStr).toLocaleDateString("ar-SA", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
@@ -186,13 +215,13 @@ export default function Receipts() {
                 <tr key={receipt.id}>
                   <td className="font-medium text-indigo-400">{receipt.receiptNumber}</td>
                   <td className="text-white">{receipt.engineerName}</td>
-                  <td>{receipt.items?.length || 0} item(s)</td>
+                  <td>{receipt.items?.length || 0} صنف</td>
                   <td className="text-slate-400">{formatDate(receipt.createdAt)}</td>
                   <td>
                     <button
                       onClick={() => setShowReceipt(receipt)}
                       className="rounded-lg p-2 text-indigo-400 transition-colors hover:bg-indigo-500/10"
-                      title="View"
+                      title="عرض"
                     >
                       <HiOutlineEye size={16} />
                     </button>
@@ -205,9 +234,9 @@ export default function Receipts() {
       )}
 
       {showModal && (
-        <div className="modal-overlay"  style={{padding: 100, marginTop: 100}} onClick={() => setShowModal(false)}>
-          <div className="modal-content"  onClick={(event) => event.stopPropagation()}>
-            <div className="mb-6 flex items-center justify-between" >
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
+            <div className="mb-6 flex items-center justify-between">
               <h2 className="text-xl font-bold text-white">إنشاء فاتورة</h2>
               <button
                 onClick={() => setShowModal(false)}
@@ -219,7 +248,7 @@ export default function Receipts() {
 
             <form onSubmit={handleCreateReceipt} className="flex flex-col gap-4">
               <div>
-                <label className="mb-4 block text-sm font-medium text-slate-300" style={{padding:5, marginTop:10}}>
+                <label className="mb-2 mt-1 block text-sm font-medium text-slate-300">
                   اختر طلب معتمد
                 </label>
                 <select
@@ -230,7 +259,7 @@ export default function Receipts() {
                   <option value="">اختر طلب معتمد</option>
                   {orders.map((order) => (
                     <option key={order.id} value={order.id}>
-                      {order.engineerName} - {order.items?.length || 0} item(s)
+                      {order.engineerName} - {order.items?.length || 0} صنف
                     </option>
                   ))}
                 </select>
@@ -248,7 +277,7 @@ export default function Receipts() {
                         className="flex items-center justify-between rounded-xl border border-white/8 bg-white/[0.04] p-3"
                       >
                         <span className="text-sm text-white">{item.productName}</span>
-                        <span className="badge badge-info">Qty: {item.quantity}</span>
+                        <span className="badge badge-info">الكمية: {item.quantity}</span>
                       </div>
                     ))}
                   </div>
@@ -256,7 +285,9 @@ export default function Receipts() {
               )}
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300" style={{marginBottom:5}}>ملاحظات</label>
+                <label className="mb-2 block text-sm font-medium text-slate-300">
+                  ملاحظات
+                </label>
                 <textarea
                   value={formData.notes}
                   onChange={(event) => setFormData({ ...formData, notes: event.target.value })}
@@ -285,14 +316,17 @@ export default function Receipts() {
 
       {showReceipt && (
         <div className="modal-overlay" onClick={() => setShowReceipt(null)}>
-          <div className="modal-content max-w-lg" style={{marginBottom:400}} onClick={(event) => event.stopPropagation()}>
-            <div className="mb-4 flex items-center justify-between">
+          <div
+            className="modal-content max-w-3xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="text-xl font-bold text-white">فاتورة صرف</h2>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handlePrint}
                   className="rounded-lg p-2 text-indigo-400 hover:bg-indigo-500/10"
-                  title="Print"
+                  title="طباعة"
                 >
                   <HiOutlinePrinter size={20} />
                 </button>
@@ -305,20 +339,20 @@ export default function Receipts() {
               </div>
             </div>
 
-            <div ref={receiptRef} className="receipt absolute translate-x-10 translate-y-10 left-20 right-50">
-              <div className="receipt-header" >
-                <h1 style={{ fontSize: '22px', fontWeight: '700' }}>فاتورة صرف</h1>
-                <p style={{ color: '#666', marginTop: '4px' }}>نظام إدارة المخزون</p>
-                <p style={{ fontSize: '14px', color: '#999', marginTop: '8px' }}>
+            <div ref={receiptRef} className="receipt mx-auto w-full max-w-2xl">
+              <div className="receipt-header">
+                <h1 className="text-[22px] font-bold">فاتورة صرف</h1>
+                <p className="mt-1 text-[#666]">نظام إدارة المخزون</p>
+                <p className="mt-2 text-sm text-[#999]">
                   رقم الفاتورة: {showReceipt.receiptNumber}
                 </p>
-                <p style={{ fontSize: '14px', color: '#999' }}>
-                  Date: {formatDate(showReceipt.createdAt)}
+                <p className="text-sm text-[#999]">
+                  التاريخ: {formatDate(showReceipt.createdAt)}
                 </p>
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
-                <p style={{ color: '#333' }}>
+              <div className="mb-4">
+                <p className="text-[#333]">
                   <strong>المهندس:</strong> {showReceipt.engineerName}
                 </p>
               </div>
@@ -343,22 +377,13 @@ export default function Receipts() {
               </table>
 
               {showReceipt.notes && (
-                <p style={{ color: '#666', marginTop: '12px', fontSize: '14px' }}>
+                <p className="mt-3 text-sm text-[#666]">
                   <strong>ملاحظات:</strong> {showReceipt.notes}
                 </p>
               )}
 
-              <div
-                style={{
-                  textAlign: 'center',
-                  marginTop: '24px',
-                  paddingTop: '16px',
-                  borderTop: '2px dashed #ccc',
-                  color: '#999',
-                  fontSize: '12px',
-                }}
-              >
-                <p>Thank you</p>
+              <div className="mt-6 border-t-2 border-dashed border-[#ccc] pt-4 text-center text-xs text-[#999]">
+                <p>شكراً لكم</p>
               </div>
             </div>
           </div>

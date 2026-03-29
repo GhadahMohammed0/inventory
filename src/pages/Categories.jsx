@@ -1,39 +1,46 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { db } from '../firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { HiOutlineCube, HiOutlineShoppingCart } from 'react-icons/hi';
-import { useCart } from '../contexts/CartContext';
+import { useState } from "react";
+import { db } from "../firebase";
+import { collection, getDocs } from "firebase/firestore";
+import { HiOutlineCube, HiOutlineShoppingCart } from "react-icons/hi";
+import { useCart } from "../contexts/CartContext";
 
 const CATEGORIES = [
   {
-    id: 'plumbing',
-    name: 'سباكة',
-    description: 'جميع مواد ومعدات السباكة',
-    color: '#0ea5e9',
-    gradient: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
-    emoji: '🔧',
+    id: "plumbing",
+    name: "سباكة",
+    description: "جميع مواد ومعدات السباكة",
+    emoji: "🔧",
+    cardClass: "bg-[linear-gradient(135deg,#0ea5e9,#0284c7)]",
+    accentClass: "bg-sky-500/15 text-sky-300",
+    buttonClass:
+      "bg-[linear-gradient(135deg,#0ea5e9,#0284c7)] hover:shadow-[0_12px_30px_rgba(14,165,233,0.35)]",
+    delayClass: "[animation-delay:0ms]",
   },
   {
-    id: 'electrical',
-    name: 'كهرباء',
-    description: 'المعدات والمواد الكهربائية',
-    color: '#f59e0b',
-    gradient: 'linear-gradient(135deg, #f59e0b, #d97706)',
-    emoji: '⚡',
+    id: "electrical",
+    name: "كهرباء",
+    description: "المعدات والمواد الكهربائية",
+    emoji: "⚡",
+    cardClass: "bg-[linear-gradient(135deg,#f59e0b,#d97706)]",
+    accentClass: "bg-amber-500/15 text-amber-200",
+    buttonClass:
+      "bg-[linear-gradient(135deg,#f59e0b,#d97706)] hover:shadow-[0_12px_30px_rgba(245,158,11,0.35)]",
+    delayClass: "[animation-delay:100ms]",
   },
   {
-    id: 'smart',
-    name: 'أنظمة ذكية',
-    description: 'الأنظمة الذكية والتحكم الآلي',
-    color: '#8b5cf6',
-    gradient: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-    emoji: '🏠',
+    id: "smart",
+    name: "أنظمة ذكية",
+    description: "الأنظمة الذكية والتحكم الآلي",
+    emoji: "🏠",
+    cardClass: "bg-[linear-gradient(135deg,#8b5cf6,#7c3aed)]",
+    accentClass: "bg-violet-500/15 text-violet-200",
+    buttonClass:
+      "bg-[linear-gradient(135deg,#8b5cf6,#7c3aed)] hover:shadow-[0_12px_30px_rgba(139,92,246,0.35)]",
+    delayClass: "[animation-delay:200ms]",
   },
 ];
 
 export default function Categories() {
-  const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -43,74 +50,60 @@ export default function Categories() {
     setSelectedCategory(category);
     setLoading(true);
     try {
-      const snap = await getDocs(collection(db, 'products'));
+      const snap = await getDocs(collection(db, "products"));
       const allProducts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setProducts(allProducts.filter((p) => p.category === category.id));
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error("Error fetching products:", error);
     }
     setLoading(false);
   };
 
   return (
     <div className="page-stack animate-fade-in">
-      <div>
+      <div className="page-header">
         <h1 className="text-2xl font-bold text-white">أقسام المنتجات</h1>
-        <p className="text-slate-400 text-sm">اختر القسم لطلب المنتجات</p>
+        <p className="text-sm text-slate-400">اختر القسم لطلب المنتجات</p>
       </div>
 
       {!selectedCategory ? (
-        /* Category Selection */
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3" >
-          {CATEGORIES.map((cat, index) => (
-            <div
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {CATEGORIES.map((cat) => (
+            <button
               key={cat.id}
+              type="button"
               onClick={() => handleCategoryClick(cat)}
-              className="cursor-pointer overflow-hidden rounded-2xl text-center transition-all duration-400 hover:scale-[1.03] hover:shadow-2xl "
-              style={{
-                animationDelay: `${index * 0.1}s`,
-                animation: 'fadeIn 0.5s ease-out forwards',  
-              }}
+              className={`animate-fade-in cursor-pointer overflow-hidden rounded-2xl text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl ${cat.delayClass}`}
             >
               <div
-                className="relative flex h-64 flex-col justify-between overflow-hidden p-6 sm:p-8"
-                style={{ background: cat.gradient, paddingTop:20 }}
+                className={`relative flex h-64 flex-col justify-between overflow-hidden p-6 pt-8 sm:h-72 sm:p-8 sm:pt-10 ${cat.cardClass}`}
               >
-                {/* Decorative elements */}
-                <div
-                  className="absolute -top-10 -left-10 w-32 h-32 rounded-full opacity-20"
-                  style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }}
-                />
-                <div
-                  className="absolute -bottom-10 -right-10 w-40 h-40 rounded-full opacity-10"
-                  style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }}
-                />
+                <div className="absolute -left-10 -top-10 h-32 w-32 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.55)_0%,transparent_70%)] opacity-20" />
+                <div className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.5)_0%,transparent_70%)] opacity-10" />
 
                 <div className="text-6xl">{cat.emoji}</div>
                 <div className="relative z-10">
-                  <h2 className="text-2xl font-bold text-white mb-2">{cat.name}</h2>
-                  <p className="text-white/80 text-sm">{cat.description}</p>
+                  <h2 className="mb-2 text-2xl font-bold text-white">{cat.name}</h2>
+                  <p className="text-sm text-white/80">{cat.description}</p>
                 </div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       ) : (
-        /* Products in Category */
-        <div>
-          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="page-stack">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               onClick={() => setSelectedCategory(null)}
-              className="btn-secondary"
-              style={{ marginBottom:20}}
+              className="btn-secondary w-full justify-center sm:w-auto"
             >
               ← العودة للأقسام
             </button>
-            <div>
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <div className="sm:text-left">
+              <h2 className="flex items-center gap-2 text-xl font-bold text-white">
                 {selectedCategory.emoji} {selectedCategory.name}
               </h2>
-              <p className="text-slate-400 text-sm" > {products.length} منتج</p>
+              <p className="text-sm text-slate-400">{products.length} منتج</p>
             </div>
           </div>
 
@@ -122,63 +115,57 @@ export default function Categories() {
             </div>
           ) : products.length === 0 ? (
             <div className="glass-card p-12 text-center">
-              <HiOutlineCube className="mx-auto text-slate-600 mb-4" size={48} />
+              <HiOutlineCube className="mx-auto mb-4 text-slate-600" size={48} />
               <p className="text-slate-400">لا توجد منتجات في هذا القسم</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-15 md:grid-cols-2 2xl:grid-cols-3" style={{ padding: "10px 20px" }}>
-  {products.map((product) => (
-    <div key={product.id} className="glass-card p-5 h-full flex flex-col justify-between">
-      
-      <div>
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <h3 className="font-bold text-white text-lg">{product.name}</h3>
-            {product.description && (
-              <p className="text-slate-400 text-sm mt-1">{product.description}</p>
-            )}
-          </div>
+            <div className="grid grid-cols-1 gap-6 px-1 sm:px-2 md:grid-cols-2 2xl:grid-cols-3">
+              {products.map((product) => {
+                const isUnavailable = (product.quantity || 0) <= 0;
 
-          <div
-            className="p-2 rounded-lg"
-            style={{
-              background: `${selectedCategory.color}20`,
-              color: selectedCategory.color,
-            }}
-          >
-            <HiOutlineCube size={20} />
-          </div>
-        </div>
-      </div>
+                return (
+                  <div
+                    key={product.id}
+                    className="glass-card flex h-full flex-col justify-between p-5"
+                  >
+                    <div>
+                      <div className="mb-3 flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-lg font-bold text-white">
+                            {product.name}
+                          </h3>
+                          {product.description && (
+                            <p className="mt-1 text-sm text-slate-400">
+                              {product.description}
+                            </p>
+                          )}
+                        </div>
 
-      <button
-        onClick={() => addToCart(product)}
-        disabled={(product.quantity || 0) <= 0}
-        className="btn-primary w-full justify-center mt-4"
-        style={{
-          background:
-            (product.quantity || 0) <= 0
-              ? 'rgba(100,100,100,0.3)'
-              : selectedCategory.gradient,
-          cursor: (product.quantity || 0) <= 0 ? 'not-allowed' : 'pointer',
-        }}
-      >
-        <HiOutlineShoppingCart size={16} />
-        {(product.quantity || 0) <= 0 ? 'غير متوفر' : 'إضافة للسلة'}
-      </button>
+                        <div className={`rounded-lg p-2 ${selectedCategory.accentClass}`}>
+                          <HiOutlineCube size={20} />
+                        </div>
+                      </div>
+                    </div>
 
-    </div>
-  ))}
-</div>
+                    <button
+                      onClick={() => addToCart(product)}
+                      disabled={isUnavailable}
+                      className={`mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-all ${
+                        isUnavailable
+                          ? "cursor-not-allowed bg-slate-700/60 text-slate-300"
+                          : selectedCategory.buttonClass
+                      }`}
+                    >
+                      <HiOutlineShoppingCart size={16} />
+                      {isUnavailable ? "غير متوفر" : "إضافة للسلة"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       )}
     </div>
   );
 }
-
-
-
-
-
-

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { db } from '../firebase';
+import { useState, useEffect } from "react";
+import { db } from "../firebase";
 import {
   collection,
   getDocs,
@@ -7,13 +7,13 @@ import {
   doc,
   updateDoc,
   increment,
-} from 'firebase/firestore';
-import toast from 'react-hot-toast';
+} from "firebase/firestore";
+import toast from "react-hot-toast";
 import {
   HiOutlinePlus,
   HiOutlineShoppingCart,
   HiOutlineX,
-} from 'react-icons/hi';
+} from "react-icons/hi";
 
 export default function Purchases() {
   const [purchases, setPurchases] = useState([]);
@@ -21,55 +21,83 @@ export default function Purchases() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
-    productId: '',
-    quantity: '',
-    price: '',
-    supplier: '',
-    date: new Date().toISOString().split('T')[0],
-    notes: '',
+    productId: "",
+    quantity: "",
+    price: "",
+    supplier: "",
+    date: new Date().toISOString().split("T")[0],
+    notes: "",
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  async function fetchPurchaseData() {
+    const [purchasesSnap, productsSnap] = await Promise.all([
+      getDocs(collection(db, "purchases")),
+      getDocs(collection(db, "products")),
+    ]);
 
-  const fetchData = async () => {
+    return {
+      purchases: purchasesSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          const dateA = a.date || a.createdAt || "";
+          const dateB = b.date || b.createdAt || "";
+          return dateB.localeCompare(dateA);
+        }),
+      products: productsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+    };
+  }
+
+  async function refreshData() {
     try {
-      const [purchasesSnap, productsSnap] = await Promise.all([
-        getDocs(collection(db, 'purchases')),
-        getDocs(collection(db, 'products')),
-      ]);
-      setPurchases(
-        purchasesSnap.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
-          .sort((a, b) => {
-            const dateA = a.date || a.createdAt || '';
-            const dateB = b.date || b.createdAt || '';
-            return dateB.localeCompare(dateA);
-          })
-      );
-      setProducts(productsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const data = await fetchPurchaseData();
+      setPurchases(data.purchases);
+      setProducts(data.products);
     } catch (error) {
-      console.error('Error fetching data:', error);
-      toast.error('حدث خطأ في جلب البيانات');
+      console.error("Error fetching data:", error);
+      toast.error("حدث خطأ في جلب البيانات");
     }
     setLoading(false);
-  };
+  }
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadData() {
+      try {
+        const data = await fetchPurchaseData();
+        if (!isMounted) return;
+        setPurchases(data.purchases);
+        setProducts(data.products);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        toast.error("حدث خطأ في جلب البيانات");
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.productId || !formData.quantity || !formData.price || !formData.supplier) {
-      toast.error('يرجى ملء جميع الحقول المطلوبة');
+      toast.error("يرجى ملء جميع الحقول المطلوبة");
       return;
     }
 
     const selectedProduct = products.find((p) => p.id === formData.productId);
 
     try {
-      // Add purchase record
-      await addDoc(collection(db, 'purchases'), {
+      await addDoc(collection(db, "purchases"), {
         productId: formData.productId,
-        productName: selectedProduct?.name || '',
+        productName: selectedProduct?.name || "",
         quantity: Number(formData.quantity),
         price: Number(formData.price),
         totalPrice: Number(formData.quantity) * Number(formData.price),
@@ -79,26 +107,25 @@ export default function Purchases() {
         createdAt: new Date().toISOString(),
       });
 
-      // Update product quantity (increase for purchases/restocking)
-      await updateDoc(doc(db, 'products', formData.productId), {
+      await updateDoc(doc(db, "products", formData.productId), {
         quantity: increment(Number(formData.quantity)),
         purchasePrice: Number(formData.price),
       });
 
-      toast.success('تم تسجيل المشتريات بنجاح');
+      toast.success("تم تسجيل المشتريات بنجاح");
       setShowModal(false);
       setFormData({
-        productId: '',
-        quantity: '',
-        price: '',
-        supplier: '',
-        date: new Date().toISOString().split('T')[0],
-        notes: '',
+        productId: "",
+        quantity: "",
+        price: "",
+        supplier: "",
+        date: new Date().toISOString().split("T")[0],
+        notes: "",
       });
-      fetchData();
+      await refreshData();
     } catch (error) {
-      console.error('Error adding purchase:', error);
-      toast.error('حدث خطأ في تسجيل المشتريات');
+      console.error("Error adding purchase:", error);
+      toast.error("حدث خطأ في تسجيل المشتريات");
     }
   };
 
@@ -113,14 +140,14 @@ export default function Purchases() {
 
   return (
     <div className="page-stack animate-fade-in">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white" style={{padding:"80px 20px"}}>إدارة المشتريات</h1>
-          <p className="text-slate-400 text-sm absolute right-5" style={{marginBottom:"5px"}}>{purchases.length} عملية شراء</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="page-header">
+          <h1 className="text-2xl font-bold text-white">إدارة المشتريات</h1>
+          <p className="text-sm text-slate-400">{purchases.length} عملية شراء</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="btn-primary"
+          className="btn-primary justify-center"
           id="add-purchase-btn"
         >
           <HiOutlinePlus size={18} />
@@ -130,8 +157,8 @@ export default function Purchases() {
 
       {purchases.length === 0 ? (
         <div className="glass-card p-12 text-center">
-          <HiOutlineShoppingCart className="mx-auto text-slate-600 mb-4" size={48} />
-          <p className="text-slate-400 text-lg">لا توجد مشتريات</p>
+          <HiOutlineShoppingCart className="mx-auto mb-4 text-slate-600" size={48} />
+          <p className="text-lg text-slate-400">لا توجد مشتريات</p>
         </div>
       ) : (
         <div className="table-container glass-card">
@@ -153,7 +180,7 @@ export default function Purchases() {
                   <td>{purchase.quantity}</td>
                   <td>{purchase.price} ر.س</td>
                   <td className="font-semibold text-indigo-400">
-                    {purchase.totalPrice || (purchase.quantity * purchase.price)} ر.س
+                    {purchase.totalPrice || purchase.quantity * purchase.price} ر.س
                   </td>
                   <td>{purchase.supplier}</td>
                   <td className="text-slate-400">{purchase.date}</td>
@@ -164,15 +191,14 @@ export default function Purchases() {
         </div>
       )}
 
-      {/* Add Purchase Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-6 flex items-center justify-between">
               <h2 className="text-xl font-bold text-white">تسجيل مشتريات جديدة</h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="p-2 rounded-lg hover:bg-white/5 text-slate-400"
+                className="rounded-lg p-2 text-slate-400 hover:bg-white/5"
               >
                 <HiOutlineX size={20} />
               </button>
@@ -180,7 +206,7 @@ export default function Purchases() {
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="mb-2 block text-sm font-medium text-slate-300">
                   المنتج *
                 </label>
                 <select
@@ -191,14 +217,16 @@ export default function Purchases() {
                 >
                   <option value="">اختر المنتج</option>
                   {products.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
                     الكمية *
                   </label>
                   <input
@@ -212,7 +240,7 @@ export default function Purchases() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
                     السعر *
                   </label>
                   <input
@@ -229,7 +257,7 @@ export default function Purchases() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="mb-2 block text-sm font-medium text-slate-300">
                   اسم المورد *
                 </label>
                 <input
@@ -243,7 +271,7 @@ export default function Purchases() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="mb-2 block text-sm font-medium text-slate-300">
                   تاريخ الشراء
                 </label>
                 <input
@@ -256,7 +284,7 @@ export default function Purchases() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="mb-2 block text-sm font-medium text-slate-300">
                   ملاحظات
                 </label>
                 <textarea
@@ -288,7 +316,3 @@ export default function Purchases() {
     </div>
   );
 }
-
-
-
-
