@@ -6,6 +6,8 @@ import {
   doc,
   updateDoc,
   increment,
+  deleteDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -14,6 +16,7 @@ import {
   HiOutlineX,
   HiOutlineClipboardList,
   HiOutlineEye,
+  HiOutlineTrash,
 } from 'react-icons/hi';
 
 export default function Orders() {
@@ -21,6 +24,8 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const { isAdmin } = useAuth();
 
   useEffect(() => {
@@ -90,6 +95,24 @@ export default function Orders() {
     }
   };
 
+  const handleDeleteAll = async () => {
+    setDeleting(true);
+    try {
+      const snap = await getDocs(collection(db, 'orders'));
+      const batch = writeBatch(db);
+      snap.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      setOrders([]);
+      setShowDeleteConfirm(false);
+      toast.success('تم حذف جميع الطلبات بنجاح');
+    } catch (error) {
+      console.error('Error deleting all orders:', error);
+      toast.error('حدث خطأ أثناء الحذف');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case 'approved':
@@ -133,17 +156,38 @@ export default function Orders() {
           <h1 className="text-2xl font-bold text-white">إدارة الطلبات</h1>
           <p className="text-slate-400 text-sm">{orders.length} طلب</p>
         </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="input-field w-full sm:w-56"
-        >
-          <option value="all">جميع الحالات</option>
-          <option value="pending">قيد الانتظار</option>
-          <option value="approved">تمت الموافقة</option>
-          <option value="rejected">مرفوض</option>
-          <option value="completed">مكتمل</option>
-        </select>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="input-field flex-1 sm:w-56"
+          >
+            <option value="all">جميع الحالات</option>
+            <option value="pending">قيد الانتظار</option>
+            <option value="approved">تمت الموافقة</option>
+            <option value="rejected">مرفوض</option>
+            <option value="completed">مكتمل</option>
+          </select>
+          {isAdmin && orders.length > 0 && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '10px 16px', borderRadius: 12,
+                background: 'rgba(239,68,68,0.12)',
+                border: '1px solid rgba(239,68,68,0.3)',
+                color: '#f87171', cursor: 'pointer',
+                fontSize: 14, fontFamily: 'Tajawal', fontWeight: 600,
+                whiteSpace: 'nowrap', transition: 'all .2s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.22)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(239,68,68,0.12)'}
+            >
+              <HiOutlineTrash size={16} />
+              حذف الكل
+            </button>
+          )}
+        </div>
       </div>
 
       {filteredOrders.length === 0 ? (
@@ -210,6 +254,60 @@ export default function Orders() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Delete All Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={() => !deleting && setShowDeleteConfirm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
+              <div style={{
+                width: 60, height: 60, borderRadius: '50%',
+                background: 'rgba(239,68,68,0.12)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 16px',
+              }}>
+                <HiOutlineTrash size={28} style={{ color: '#f87171' }} />
+              </div>
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 20, marginBottom: 8 }}>
+                حذف جميع الطلبات
+              </h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
+                هل أنت متأكد من حذف <strong style={{ color: '#f87171' }}>جميع الطلبات ({orders.length})</strong>؟<br />
+                سيتم تصفير الإيرادات ولا يمكن التراجع عن هذا الإجراء.
+              </p>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleting}
+                  style={{
+                    padding: '10px 24px', borderRadius: 12,
+                    background: 'var(--bg-surface-2)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-muted)', cursor: 'pointer',
+                    fontFamily: 'Tajawal', fontWeight: 600, fontSize: 14,
+                  }}
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleDeleteAll}
+                  disabled={deleting}
+                  style={{
+                    padding: '10px 24px', borderRadius: 12,
+                    background: deleting ? 'rgba(239,68,68,0.4)' : 'rgba(239,68,68,0.85)',
+                    border: 'none',
+                    color: '#fff', cursor: deleting ? 'not-allowed' : 'pointer',
+                    fontFamily: 'Tajawal', fontWeight: 700, fontSize: 14,
+                    transition: 'all .2s',
+                  }}
+                >
+                  {deleting ? 'جاري الحذف...' : 'نعم، احذف الكل'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
