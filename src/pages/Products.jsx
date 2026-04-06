@@ -252,6 +252,7 @@ export default function Products() {
                 <th>الفئة</th>
                 <th>الكمية</th>
                 <th>سعر الشراء (الصين)</th>
+                <th>إجمالي سعر المنتج</th>
                 <th>سعر البيع (المهندسين)</th>
                 <th>هامش الربح</th>
                 <th>الحالة</th>
@@ -298,6 +299,9 @@ export default function Products() {
                     </td>
                     <td style={{ fontWeight: 700, color: "var(--text-primary)" }}>{product.quantity}</td>
                     <td style={{ color: "var(--text-muted)" }}>{product.purchasePrice?.toLocaleString()} ر.س</td>
+                    <td style={{ color: "#c084fc", fontWeight: 700 }}>
+                      {((product.purchasePrice || 0) * (product.quantity || 0)).toLocaleString()} ر.س
+                    </td>
                     <td style={{ color: "var(--gold-primary)", fontWeight: 700 }}>{product.salePrice?.toLocaleString()} ر.س</td>
                     <td>
                       {margin !== null && (

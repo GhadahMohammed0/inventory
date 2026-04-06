@@ -44,10 +44,12 @@ export default function Dashboard() {
         const lowStock = products.filter((p) => (p.quantity || 0) <= (p.minStock || 5));
 
         // Financial calculations
-        const totalExpenses = purchases.reduce(
-          (sum, p) => sum + (p.totalPrice || p.quantity * p.price || 0), 0
+        // إجمالي المصروفات = إجمالي سعر شراء المنتجات الموجودة بالمخزون (سعر الصين × الكمية)
+        const totalExpenses = products.reduce(
+          (sum, p) => sum + (p.purchasePrice || 0) * (p.quantity || 0), 0
         );
 
+        // إجمالي الإيرادات = مجموع سعر البيع (المهندسين) للطلبات الموافق عليها
         const completedOrders = orders.filter((o) => o.status === "completed" || o.status === "approved");
         const totalRevenue = completedOrders.reduce((sum, order) => {
           const orderRevenue = (order.items || []).reduce((s, item) => {
