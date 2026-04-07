@@ -54,22 +54,54 @@ export default function Orders() {
     setLoading(false);
   };
 
+  const restoreOrderStock = async (order) => {
+    if (!order?.items?.length) return;
+
+    for (const item of order.items) {
+      if (item.productId) {
+        await updateDoc(doc(db, 'products', item.productId), {
+          quantity: increment(Number(item.quantity || 0)),
+        });
+      }
+    }
+  };
+
+  const deductOrderStock = async (order) => {
+    if (!order?.items?.length) return;
+
+    for (const item of order.items) {
+      if (item.productId) {
+        await updateDoc(doc(db, 'products', item.productId), {
+          quantity: increment(-Number(item.quantity || 0)),
+        });
+      }
+    }
+  };
+
+  const deleteRelatedReceipts = async (orderId) => {
+    const receiptsSnap = await getDocs(collection(db, 'receipts'));
+    const relatedReceipts = receiptsSnap.docs.filter(
+      (receiptDoc) => receiptDoc.data()?.orderId === orderId
+    );
+
+    for (const receiptDoc of relatedReceipts) {
+      await deleteDoc(doc(db, 'receipts', receiptDoc.id));
+    }
+  };
+
   const handleApprove = async (order) => {
     try {
+      if (order.status === 'approved' || order.status === 'completed') {
+        toast('الطلب معتمد بالفعل');
+        return;
+      }
+
       await updateDoc(doc(db, 'orders', order.id), {
         status: 'approved',
         updatedAt: new Date().toISOString(),
       });
 
-      if (order.items && order.items.length > 0) {
-        for (const item of order.items) {
-          if (item.productId) {
-            await updateDoc(doc(db, 'products', item.productId), {
-              quantity: increment(-item.quantity),
-            });
-          }
-        }
-      }
+      await deductOrderStock(order);
 
       toast.success('تمت الموافقة على الطلب');
       fetchOrders();
@@ -81,10 +113,16 @@ export default function Orders() {
 
   const handleReject = async (order) => {
     try {
+      if (order.status === 'approved' || order.status === 'completed') {
+        await restoreOrderStock(order);
+        await deleteRelatedReceipts(order.id);
+      }
+
       await updateDoc(doc(db, 'orders', order.id), {
         status: 'rejected',
         updatedAt: new Date().toISOString(),
       });
+
       toast.success('تم رفض الطلب');
       fetchOrders();
     } catch (error) {
@@ -100,6 +138,11 @@ export default function Orders() {
     if (!confirmed) return;
 
     try {
+      if (order.status === 'approved' || order.status === 'completed') {
+        await restoreOrderStock(order);
+      }
+
+      await deleteRelatedReceipts(order.id);
       await deleteDoc(doc(db, 'orders', order.id));
 
       if (selectedOrder?.id === order.id) {
@@ -117,10 +160,29 @@ export default function Orders() {
   const handleDeleteAll = async () => {
     setDeleting(true);
     try {
-      const snap = await getDocs(collection(db, 'orders'));
+      const ordersSnap = await getDocs(collection(db, 'orders'));
+      const receiptsSnap = await getDocs(collection(db, 'receipts'));
+
+      const ordersData = ordersSnap.docs.map((d) => ({
+        id: d.id,
+        ref: d.ref,
+        ...d.data(),
+      }));
+
+      for (const order of ordersData) {
+        if (order.status === 'approved' || order.status === 'completed') {
+          await restoreOrderStock(order);
+        }
+      }
+
       const batch = writeBatch(db);
-      snap.docs.forEach((d) => batch.delete(d.ref));
+
+      ordersData.forEach((order) => batch.delete(order.ref));
+
+      receiptsSnap.docs.forEach((receiptDoc) => batch.delete(receiptDoc.ref));
+
       await batch.commit();
+
       setOrders([]);
       setShowDeleteConfirm(false);
       toast.success('تم حذف جميع الطلبات بنجاح');
@@ -287,6 +349,16 @@ export default function Orders() {
                           </>
                         )}
 
+                        {(order.status === 'approved' || order.status === 'completed') && (
+                          <button
+                            onClick={() => handleReject(order)}
+                            className="p-2 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors"
+                            title="إلغاء الموافقة / رفض"
+                          >
+                            <HiOutlineX size={16} />
+                          </button>
+                        )}
+
                         <button
                           onClick={() => handleDeleteOrder(order)}
                           className="p-2 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors"
@@ -344,7 +416,7 @@ export default function Orders() {
               >
                 هل أنت متأكد من حذف <strong style={{ color: '#f87171' }}>جميع الطلبات ({orders.length})</strong>؟
                 <br />
-                سيتم تصفير الإيرادات ولا يمكن التراجع عن هذا الإجراء.
+                سيتم حذف الطلبات والفواتير المرتبطة بها وإرجاع المخزون.
               </p>
 
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
@@ -453,4 +525,3 @@ export default function Orders() {
     </div>
   );
 }
-    
