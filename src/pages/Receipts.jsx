@@ -176,6 +176,12 @@ export default function Receipts() {
     try {
       await deleteDoc(doc(db, "receipts", receipt.id));
 
+      if (receipt.orderId) {
+        await updateDoc(doc(db, "orders", receipt.orderId), {
+          status: "approved",
+        });
+      }
+
       if (showReceipt?.id === receipt.id) {
         setShowReceipt(null);
       }
@@ -329,7 +335,10 @@ export default function Receipts() {
           </p>
         </div>
 
-        <button onClick={() => setShowModal(true)} className="btn-primary justify-center">
+        <button
+          onClick={() => setShowModal(true)}
+          className="btn-primary justify-center"
+        >
           <HiOutlinePlus size={18} />
           إنشاء فاتورة
         </button>
