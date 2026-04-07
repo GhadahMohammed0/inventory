@@ -7,6 +7,7 @@ import {
   doc,
   updateDoc,
   increment,
+  deleteDoc,
 } from "firebase/firestore";
 import toast from "react-hot-toast";
 import {
@@ -16,6 +17,7 @@ import {
   HiOutlineTrendingUp,
   HiOutlineTrendingDown,
   HiOutlineCurrencyDollar,
+  HiOutlineTrash,
 } from "react-icons/hi";
 
 export default function Purchases() {
@@ -87,9 +89,7 @@ export default function Purchases() {
     };
   }, []);
 
-  /* ── Financial calculations ── */
-
-  // إجمالي المصروفات = قيمة المخزون الحالية بسعر الشراء
+  // إجمالي المصروفات = قيمة المخزون الحالية بسعر الشراء من الصين
   const totalExpenses = products.reduce((sum, product) => {
     const quantity = Number(product.quantity || 0);
     const purchasePrice = Number(product.purchasePrice || 0);
@@ -163,6 +163,46 @@ export default function Purchases() {
     } catch (error) {
       console.error(error);
       toast.error("حدث خطأ في تسجيل المشتريات");
+    }
+  };
+
+  const handleDeletePurchase = async (purchase) => {
+    const confirmed = window.confirm(
+      `هل أنت متأكد من حذف عملية شراء "${purchase.productName}"؟`
+    );
+    if (!confirmed) return;
+
+    try {
+      const productRef = doc(db, "products", purchase.productId);
+
+      // حذف سجل الشراء
+      await deleteDoc(doc(db, "purchases", purchase.id));
+
+      // إنقاص الكمية من المخزون
+      await updateDoc(productRef, {
+        quantity: increment(-Number(purchase.quantity || 0)),
+      });
+
+      // محاولة إعادة سعر الشراء إلى آخر سعر شراء متبقٍ لنفس المنتج
+      const remainingPurchases = purchases
+        .filter(
+          (p) => p.id !== purchase.id && p.productId === purchase.productId
+        )
+        .sort((a, b) =>
+          (b.date || b.createdAt || "").localeCompare(a.date || a.createdAt || "")
+        );
+
+      if (remainingPurchases.length > 0) {
+        await updateDoc(productRef, {
+          purchasePrice: Number(remainingPurchases[0].price || 0),
+        });
+      }
+
+      toast.success("تم حذف عملية الشراء بنجاح");
+      await refreshData();
+    } catch (error) {
+      console.error(error);
+      toast.error("حدث خطأ أثناء حذف عملية الشراء");
     }
   };
 
@@ -268,7 +308,7 @@ export default function Purchases() {
               marginTop: 4,
             }}
           >
-            قيمة المخزون الحالية بسعر الشراء
+            قيمة المخزون الحالية بسعر الشراء من الصين
           </p>
         </div>
 
@@ -341,6 +381,7 @@ export default function Purchases() {
                 <th>الإجمالي</th>
                 <th>المورد</th>
                 <th>التاريخ</th>
+                <th>الإجراءات</th>
               </tr>
             </thead>
             <tbody>
@@ -372,6 +413,15 @@ export default function Purchases() {
                   </td>
                   <td>{purchase.supplier}</td>
                   <td style={{ color: "var(--text-muted)" }}>{purchase.date}</td>
+                  <td>
+                    <button
+                      onClick={() => handleDeletePurchase(purchase)}
+                      className="rounded-lg p-2 text-red-400 transition-colors hover:bg-red-500/10"
+                      title="حذف العملية"
+                    >
+                      <HiOutlineTrash size={16} />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -612,4 +662,4 @@ export default function Purchases() {
       )}
     </div>
   );
-} 
+}
