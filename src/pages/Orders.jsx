@@ -56,13 +56,11 @@ export default function Orders() {
 
   const handleApprove = async (order) => {
     try {
-      // Update order status
       await updateDoc(doc(db, 'orders', order.id), {
         status: 'approved',
         updatedAt: new Date().toISOString(),
       });
 
-      // Decrease inventory for each item
       if (order.items && order.items.length > 0) {
         for (const item of order.items) {
           if (item.productId) {
@@ -92,6 +90,27 @@ export default function Orders() {
     } catch (error) {
       console.error('Error rejecting order:', error);
       toast.error('حدث خطأ في رفض الطلب');
+    }
+  };
+
+  const handleDeleteOrder = async (order) => {
+    const confirmed = window.confirm(
+      `هل أنت متأكد من حذف طلب "${order.engineerName || 'مهندس'}"؟`
+    );
+    if (!confirmed) return;
+
+    try {
+      await deleteDoc(doc(db, 'orders', order.id));
+
+      if (selectedOrder?.id === order.id) {
+        setSelectedOrder(null);
+      }
+
+      toast.success('تم حذف الطلب بنجاح');
+      fetchOrders();
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      toast.error('حدث خطأ أثناء حذف الطلب');
     }
   };
 
@@ -156,6 +175,7 @@ export default function Orders() {
           <h1 className="text-2xl font-bold text-white">إدارة الطلبات</h1>
           <p className="text-slate-400 text-sm">{orders.length} طلب</p>
         </div>
+
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <select
             value={filterStatus}
@@ -168,20 +188,32 @@ export default function Orders() {
             <option value="rejected">مرفوض</option>
             <option value="completed">مكتمل</option>
           </select>
+
           {isAdmin && orders.length > 0 && (
             <button
               onClick={() => setShowDeleteConfirm(true)}
               style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '10px 16px', borderRadius: 12,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '10px 16px',
+                borderRadius: 12,
                 background: 'rgba(239,68,68,0.12)',
                 border: '1px solid rgba(239,68,68,0.3)',
-                color: '#f87171', cursor: 'pointer',
-                fontSize: 14, fontFamily: 'Tajawal', fontWeight: 600,
-                whiteSpace: 'nowrap', transition: 'all .2s',
+                color: '#f87171',
+                cursor: 'pointer',
+                fontSize: 14,
+                fontFamily: 'Tajawal',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+                transition: 'all .2s',
               }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.22)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(239,68,68,0.12)'}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = 'rgba(239,68,68,0.22)')
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = 'rgba(239,68,68,0.12)')
+              }
             >
               <HiOutlineTrash size={16} />
               حذف الكل
@@ -214,6 +246,7 @@ export default function Orders() {
                   <td className="font-medium text-white">
                     {order.engineerName || 'مهندس'}
                   </td>
+
                   <td>
                     <button
                       onClick={() => setSelectedOrder(order)}
@@ -223,31 +256,45 @@ export default function Orders() {
                       {order.items?.length || 0} منتج
                     </button>
                   </td>
+
                   <td className="text-slate-400">{formatDate(order.createdAt)}</td>
                   <td>{getStatusBadge(order.status)}</td>
+
                   <td className="text-slate-400 max-w-[150px] truncate">
                     {order.note || '-'}
                   </td>
+
                   {isAdmin && (
                     <td>
-                      {(!order.status || order.status === 'pending') && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleApprove(order)}
-                            className="p-2 rounded-lg hover:bg-green-500/10 text-green-400 transition-colors"
-                            title="موافقة"
-                          >
-                            <HiOutlineCheck size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleReject(order)}
-                            className="p-2 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors"
-                            title="رفض"
-                          >
-                            <HiOutlineX size={16} />
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {(!order.status || order.status === 'pending') && (
+                          <>
+                            <button
+                              onClick={() => handleApprove(order)}
+                              className="p-2 rounded-lg hover:bg-green-500/10 text-green-400 transition-colors"
+                              title="موافقة"
+                            >
+                              <HiOutlineCheck size={16} />
+                            </button>
+
+                            <button
+                              onClick={() => handleReject(order)}
+                              className="p-2 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors"
+                              title="رفض"
+                            >
+                              <HiOutlineX size={16} />
+                            </button>
+                          </>
+                        )}
+
+                        <button
+                          onClick={() => handleDeleteOrder(order)}
+                          className="p-2 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors"
+                          title="حذف الطلب"
+                        >
+                          <HiOutlineTrash size={16} />
+                        </button>
+                      </div>
                     </td>
                   )}
                 </tr>
@@ -257,49 +304,83 @@ export default function Orders() {
         </div>
       )}
 
-      {/* Delete All Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="modal-overlay" onClick={() => !deleting && setShowDeleteConfirm(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
             <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
-              <div style={{
-                width: 60, height: 60, borderRadius: '50%',
-                background: 'rgba(239,68,68,0.12)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 16px',
-              }}>
+              <div
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: '50%',
+                  background: 'rgba(239,68,68,0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px',
+                }}
+              >
                 <HiOutlineTrash size={28} style={{ color: '#f87171' }} />
               </div>
-              <h2 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 20, marginBottom: 8 }}>
+
+              <h2
+                style={{
+                  color: 'var(--text-primary)',
+                  fontWeight: 800,
+                  fontSize: 20,
+                  marginBottom: 8,
+                }}
+              >
                 حذف جميع الطلبات
               </h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
-                هل أنت متأكد من حذف <strong style={{ color: '#f87171' }}>جميع الطلبات ({orders.length})</strong>؟<br />
+
+              <p
+                style={{
+                  color: 'var(--text-muted)',
+                  fontSize: 14,
+                  lineHeight: 1.7,
+                  marginBottom: 24,
+                }}
+              >
+                هل أنت متأكد من حذف <strong style={{ color: '#f87171' }}>جميع الطلبات ({orders.length})</strong>؟
+                <br />
                 سيتم تصفير الإيرادات ولا يمكن التراجع عن هذا الإجراء.
               </p>
+
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
                   disabled={deleting}
                   style={{
-                    padding: '10px 24px', borderRadius: 12,
+                    padding: '10px 24px',
+                    borderRadius: 12,
                     background: 'var(--bg-surface-2)',
                     border: '1px solid var(--border-color)',
-                    color: 'var(--text-muted)', cursor: 'pointer',
-                    fontFamily: 'Tajawal', fontWeight: 600, fontSize: 14,
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontFamily: 'Tajawal',
+                    fontWeight: 600,
+                    fontSize: 14,
                   }}
                 >
                   إلغاء
                 </button>
+
                 <button
                   onClick={handleDeleteAll}
                   disabled={deleting}
                   style={{
-                    padding: '10px 24px', borderRadius: 12,
-                    background: deleting ? 'rgba(239,68,68,0.4)' : 'rgba(239,68,68,0.85)',
+                    padding: '10px 24px',
+                    borderRadius: 12,
+                    background: deleting
+                      ? 'rgba(239,68,68,0.4)'
+                      : 'rgba(239,68,68,0.85)',
                     border: 'none',
-                    color: '#fff', cursor: deleting ? 'not-allowed' : 'pointer',
-                    fontFamily: 'Tajawal', fontWeight: 700, fontSize: 14,
+                    color: '#fff',
+                    cursor: deleting ? 'not-allowed' : 'pointer',
+                    fontFamily: 'Tajawal',
+                    fontWeight: 700,
+                    fontSize: 14,
                     transition: 'all .2s',
                   }}
                 >
@@ -311,7 +392,6 @@ export default function Orders() {
         </div>
       )}
 
-      {/* Order Details Modal */}
       {selectedOrder && (
         <div className="modal-overlay" onClick={() => setSelectedOrder(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -330,14 +410,17 @@ export default function Orders() {
                 <span className="text-slate-400">المهندس:</span>
                 <span className="text-white">{selectedOrder.engineerName}</span>
               </div>
+
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">الحالة:</span>
                 {getStatusBadge(selectedOrder.status)}
               </div>
+
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">التاريخ:</span>
                 <span className="text-white">{formatDate(selectedOrder.createdAt)}</span>
               </div>
+
               {selectedOrder.note && (
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-400">ملاحظات:</span>
@@ -370,5 +453,4 @@ export default function Orders() {
     </div>
   );
 }
-
 
