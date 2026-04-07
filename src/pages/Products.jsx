@@ -216,7 +216,6 @@ export default function Products() {
         const purchasePrice = Number(product.purchasePrice || 0);
         const salePrice = Number(product.salePrice || 0);
         const totalProductPrice = quantity * purchasePrice;
-        const totalSaleValue = quantity * salePrice;
         const profitMargin =
           purchasePrice > 0
             ? (((salePrice - purchasePrice) / purchasePrice) * 100).toFixed(1)
@@ -295,8 +294,18 @@ export default function Products() {
     <div className="page-stack animate-fade-in">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="page-header">
-          <h1 className="text-2xl font-bold text-white">إدارة المنتجات</h1>
-          <p className="text-sm text-slate-400">{products.length} منتج في المخزون</p>
+          <h1
+            style={{
+              color: "var(--text-primary)",
+              fontSize: 24,
+              fontWeight: 800,
+            }}
+          >
+            إدارة المنتجات
+          </h1>
+          <p style={{ color: "var(--text-muted)", fontSize: 13 }}>
+            {products.length} منتج في المخزون
+          </p>
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -358,8 +367,8 @@ export default function Products() {
       {filteredProducts.length === 0 ? (
         <div className="glass-card p-12 text-center">
           <HiOutlineCube className="mx-auto mb-4 text-slate-600" size={48} />
-          <p className="text-lg text-slate-400">لا توجد منتجات</p>
-          <p className="text-sm text-slate-500">
+          <p style={{ color: "var(--text-muted)", fontSize: 18 }}>لا توجد منتجات</p>
+          <p style={{ color: "var(--text-muted)", fontSize: 13 }}>
             اضغط على "إضافة منتج" لإضافة منتج جديد
           </p>
         </div>
@@ -410,9 +419,23 @@ export default function Products() {
                         )}
 
                         <div>
-                          <p className="font-medium text-white">{product.name}</p>
+                          <p
+                            className="font-medium"
+                            style={{ color: "var(--text-primary)" }}
+                          >
+                            {product.name}
+                          </p>
                           {product.description ? (
-                            <p className="max-w-[220px] truncate text-xs text-slate-500">
+                            <p
+                              style={{
+                                maxWidth: 220,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                fontSize: 12,
+                                color: "var(--text-muted)",
+                              }}
+                            >
                               {product.description}
                             </p>
                           ) : null}
@@ -426,15 +449,26 @@ export default function Products() {
                       </span>
                     </td>
 
-                    <td className="font-semibold text-white">{quantity}</td>
+                    <td style={{ fontWeight: 700, color: "var(--text-primary)" }}>
+                      {quantity}
+                    </td>
 
-                    <td>{purchasePrice.toLocaleString()} ر.س</td>
+                    <td style={{ color: "var(--text-primary)" }}>
+                      {purchasePrice.toLocaleString()} ر.س
+                    </td>
 
-                    <td className="font-semibold text-violet-300">
+                    <td
+                      style={{
+                        fontWeight: 700,
+                        color: "var(--gold-primary)",
+                      }}
+                    >
                       {totalProductPrice.toLocaleString()} ر.س
                     </td>
 
-                    <td>{salePrice.toLocaleString()} ر.س</td>
+                    <td style={{ color: "var(--text-primary)" }}>
+                      {salePrice.toLocaleString()} ر.س
+                    </td>
 
                     <td>
                       <span
@@ -488,7 +522,13 @@ export default function Products() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white">
+              <h2
+                style={{
+                  color: "var(--text-primary)",
+                  fontWeight: 800,
+                  fontSize: 20,
+                }}
+              >
                 {editProduct ? "تعديل المنتج" : "إضافة منتج جديد"}
               </h2>
               <button
@@ -501,7 +541,15 @@ export default function Products() {
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
+                <label
+                  style={{
+                    color: "var(--text-secondary)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    display: "block",
+                    marginBottom: 8,
+                  }}
+                >
                   اسم المنتج *
                 </label>
                 <input
@@ -517,7 +565,15 @@ export default function Products() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
+                <label
+                  style={{
+                    color: "var(--text-secondary)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    display: "block",
+                    marginBottom: 8,
+                  }}
+                >
                   رابط صورة المنتج
                 </label>
                 <input
@@ -534,7 +590,15 @@ export default function Products() {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                  <label
+                    style={{
+                      color: "var(--text-secondary)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 8,
+                    }}
+                  >
                     الكمية *
                   </label>
                   <input
@@ -551,7 +615,15 @@ export default function Products() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                  <label
+                    style={{
+                      color: "var(--text-secondary)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 8,
+                    }}
+                  >
                     سعر الشراء من الصين *
                   </label>
                   <input
@@ -569,7 +641,15 @@ export default function Products() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                  <label
+                    style={{
+                      color: "var(--text-secondary)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 8,
+                    }}
+                  >
                     سعر البيع للمشاريع *
                   </label>
                   <input
@@ -589,7 +669,15 @@ export default function Products() {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                  <label
+                    style={{
+                      color: "var(--text-secondary)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 8,
+                    }}
+                  >
                     الفئة
                   </label>
                   <select
@@ -609,7 +697,15 @@ export default function Products() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                  <label
+                    style={{
+                      color: "var(--text-secondary)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 8,
+                    }}
+                  >
                     حد أدنى للمخزون
                   </label>
                   <input
@@ -627,7 +723,15 @@ export default function Products() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
+                <label
+                  style={{
+                    color: "var(--text-secondary)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    display: "block",
+                    marginBottom: 8,
+                  }}
+                >
                   الوصف
                 </label>
                 <textarea
