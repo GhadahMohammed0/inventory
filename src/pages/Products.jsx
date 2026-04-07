@@ -1,4 +1,4 @@
- import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { db } from "../firebase";
 import {
   collection,
@@ -58,6 +58,7 @@ export default function Products() {
     quantity: "",
     purchasePrice: "",
     salePrice: "",
+    image: "",
     category: "plumbing",
     minStock: "5",
     description: "",
@@ -73,7 +74,7 @@ export default function Products() {
       const data = await fetchProductsData();
       setProducts(data);
     } catch (error) {
-      console.error("Error fetching products:", error);
+      console.error(error);
       toast.error("حدث خطأ في جلب المنتجات");
     }
     setLoading(false);
@@ -88,12 +89,10 @@ export default function Products() {
         if (!isMounted) return;
         setProducts(data);
       } catch (error) {
-        console.error("Error fetching products:", error);
+        console.error(error);
         toast.error("حدث خطأ في جلب المنتجات");
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (isMounted) setLoading(false);
       }
     }
 
@@ -123,6 +122,7 @@ export default function Products() {
         quantity: Number(formData.quantity),
         purchasePrice: Number(formData.purchasePrice),
         salePrice: Number(formData.salePrice),
+        image: formData.image || "",
         category: formData.category,
         minStock: Number(formData.minStock) || 5,
         description: formData.description,
@@ -143,7 +143,7 @@ export default function Products() {
       resetForm();
       await refreshProducts();
     } catch (error) {
-      console.error("Error saving product:", error);
+      console.error(error);
       toast.error("حدث خطأ في حفظ المنتج");
     }
   };
@@ -156,7 +156,7 @@ export default function Products() {
       toast.success("تم حذف المنتج");
       await refreshProducts();
     } catch (error) {
-      console.error("Error deleting product:", error);
+      console.error(error);
       toast.error("حدث خطأ في حذف المنتج");
     }
   };
@@ -165,11 +165,12 @@ export default function Products() {
     setEditProduct(product);
     setFormData({
       name: product.name || "",
-      quantity: product.quantity?.toString() || "",
-      purchasePrice: product.purchasePrice?.toString() || "",
-      salePrice: product.salePrice?.toString() || "",
+      quantity: String(product.quantity ?? ""),
+      purchasePrice: String(product.purchasePrice ?? ""),
+      salePrice: String(product.salePrice ?? ""),
+      image: product.image || "",
       category: product.category || "plumbing",
-      minStock: (product.minStock || 5).toString(),
+      minStock: String(product.minStock ?? 5),
       description: product.description || "",
     });
     setShowModal(true);
@@ -181,6 +182,7 @@ export default function Products() {
       quantity: "",
       purchasePrice: "",
       salePrice: "",
+      image: "",
       category: "plumbing",
       minStock: "5",
       description: "",
@@ -191,30 +193,34 @@ export default function Products() {
     CATEGORIES.find((c) => c.id === catId) || FALLBACK_CATEGORY;
 
   const filteredProducts = products.filter((p) => {
-    const matchesSearch = p.name
-      ?.toLowerCase()
+    const matchesSearch = (p.name || "")
+      .toLowerCase()
       .includes(searchQuery.toLowerCase());
     const matchesCategory =
       filterCategory === "all" || p.category === filterCategory;
+
     return matchesSearch && matchesCategory;
   });
 
   const handlePrintProducts = () => {
     const printWindow = window.open("", "_blank");
-
     if (!printWindow) {
       toast.error("تعذر فتح نافذة الطباعة");
       return;
     }
 
-    const rows = products
+    const rows = filteredProducts
       .map((product, index) => {
         const category = getCategoryMeta(product.category);
         const quantity = Number(product.quantity || 0);
         const purchasePrice = Number(product.purchasePrice || 0);
         const salePrice = Number(product.salePrice || 0);
-        const stockValuePurchase = quantity * purchasePrice;
-        const stockValueSale = quantity * salePrice;
+        const totalProductPrice = quantity * purchasePrice;
+        const totalSaleValue = quantity * salePrice;
+        const profitMargin =
+          purchasePrice > 0
+            ? (((salePrice - purchasePrice) / purchasePrice) * 100).toFixed(1)
+            : "0.0";
 
         return `
           <tr>
@@ -222,106 +228,47 @@ export default function Products() {
             <td>${product.name || "-"}</td>
             <td>${category.name}</td>
             <td>${quantity}</td>
-            <td>${purchasePrice.toFixed(2)} ر.س</td>
-            <td>${salePrice.toFixed(2)} ر.س</td>
-            <td>${stockValuePurchase.toFixed(2)} ر.س</td>
-            <td>${stockValueSale.toFixed(2)} ر.س</td>
+            <td>${purchasePrice.toLocaleString()} ر.س</td>
+            <td>${totalProductPrice.toLocaleString()} ر.س</td>
+            <td>${salePrice.toLocaleString()} ر.س</td>
+            <td>${profitMargin}%</td>
             <td>${quantity <= Number(product.minStock || 5) ? "منخفض" : "متوفر"}</td>
           </tr>
         `;
       })
       .join("");
 
-    const totalQuantity = products.reduce(
-      (sum, product) => sum + Number(product.quantity || 0),
-      0
-    );
-
-    const totalPurchaseValue = products.reduce(
-      (sum, product) =>
-        sum + Number(product.quantity || 0) * Number(product.purchasePrice || 0),
-      0
-    );
-
-    const totalSaleValue = products.reduce(
-      (sum, product) =>
-        sum + Number(product.quantity || 0) * Number(product.salePrice || 0),
-      0
-    );
-
     printWindow.document.write(`
       <html dir="rtl">
         <head>
           <meta charset="UTF-8" />
-          <title>طباعة المخزون</title>
+          <title>طباعة المنتجات</title>
           <style>
-            body {
-              font-family: Arial, sans-serif;
-              direction: rtl;
-              padding: 24px;
-              color: #222;
-            }
-            h1 {
-              margin: 0 0 8px;
-            }
-            p {
-              margin: 0 0 8px;
-              color: #666;
-              font-size: 14px;
-            }
-            .summary {
-              margin: 16px 0 20px;
-              padding: 12px;
-              background: #f8f8f8;
-              border: 1px solid #ddd;
-              border-radius: 8px;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 16px;
-            }
-            th, td {
-              border: 1px solid #ccc;
-              padding: 10px;
-              text-align: right;
-              font-size: 13px;
-            }
-            th {
-              background: #f3f3f3;
-              font-weight: bold;
-            }
+            body { font-family: Arial, sans-serif; direction: rtl; padding: 24px; color: #222; }
+            h1 { margin-bottom: 16px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ddd; padding: 10px; text-align: right; font-size: 13px; }
+            th { background: #f5f5f5; }
           </style>
         </head>
         <body>
-          <h1>تقرير كامل المنتجات والمخزون</h1>
-          <p>عدد المنتجات: ${products.length}</p>
-
-          <div class="summary">
-            <p><strong>إجمالي الكمية بالمخزون:</strong> ${totalQuantity}</p>
-            <p><strong>إجمالي قيمة المخزون بسعر الشراء:</strong> ${totalPurchaseValue.toFixed(2)} ر.س</p>
-            <p><strong>إجمالي قيمة المخزون بسعر البيع:</strong> ${totalSaleValue.toFixed(2)} ر.س</p>
-          </div>
-
+          <h1>تقرير المنتجات</h1>
           <table>
             <thead>
               <tr>
                 <th>#</th>
-                <th>اسم المنتج</th>
+                <th>المنتج</th>
                 <th>الفئة</th>
                 <th>الكمية</th>
-                <th>سعر الشراء</th>
-                <th>سعر البيع</th>
-                <th>قيمة المخزون شراء</th>
-                <th>قيمة المخزون بيع</th>
+                <th>سعر الشراء من الصين</th>
+                <th>إجمالي سعر المنتج</th>
+                <th>سعر البيع للمشاريع</th>
+                <th>هامش الربح</th>
                 <th>الحالة</th>
               </tr>
             </thead>
-            <tbody>
-              ${rows}
-            </tbody>
+            <tbody>${rows}</tbody>
           </table>
-
           <script>
             window.onload = function () {
               window.print();
@@ -349,9 +296,7 @@ export default function Products() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="page-header">
           <h1 className="text-2xl font-bold text-white">إدارة المنتجات</h1>
-          <p className="text-sm text-slate-400">
-            {products.length} منتج في المخزون
-          </p>
+          <p className="text-sm text-slate-400">{products.length} منتج في المخزون</p>
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -426,8 +371,10 @@ export default function Products() {
                 <th>المنتج</th>
                 <th>الفئة</th>
                 <th>الكمية</th>
-                <th>سعر الشراء</th>
-                <th>سعر البيع</th>
+                <th>سعر الشراء من الصين</th>
+                <th>إجمالي سعر المنتج</th>
+                <th>سعر البيع للمشاريع</th>
+                <th>هامش الربح</th>
                 <th>الحالة</th>
                 <th>الإجراءات</th>
               </tr>
@@ -435,23 +382,40 @@ export default function Products() {
             <tbody>
               {filteredProducts.map((product) => {
                 const category = getCategoryMeta(product.category);
+                const quantity = Number(product.quantity || 0);
+                const purchasePrice = Number(product.purchasePrice || 0);
+                const salePrice = Number(product.salePrice || 0);
+                const totalProductPrice = quantity * purchasePrice;
+                const profitMargin =
+                  purchasePrice > 0
+                    ? (((salePrice - purchasePrice) / purchasePrice) * 100).toFixed(1)
+                    : "0.0";
 
                 return (
                   <tr key={product.id}>
                     <td>
                       <div className="flex items-center gap-3">
-                        <div
-                          className={`flex h-10 w-10 items-center justify-center rounded-lg ${category.iconClass}`}
-                        >
-                          <HiOutlineCube size={18} />
-                        </div>
+                        {product.image ? (
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className="h-10 w-10 rounded-lg object-cover border border-white/10"
+                          />
+                        ) : (
+                          <div
+                            className={`flex h-10 w-10 items-center justify-center rounded-lg ${category.iconClass}`}
+                          >
+                            <HiOutlineCube size={18} />
+                          </div>
+                        )}
+
                         <div>
                           <p className="font-medium text-white">{product.name}</p>
-                          {product.description && (
-                            <p className="max-w-[200px] truncate text-xs text-slate-500">
+                          {product.description ? (
+                            <p className="max-w-[220px] truncate text-xs text-slate-500">
                               {product.description}
                             </p>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     </td>
@@ -462,15 +426,31 @@ export default function Products() {
                       </span>
                     </td>
 
-                    <td className="font-semibold text-white">
-                      {product.quantity}
+                    <td className="font-semibold text-white">{quantity}</td>
+
+                    <td>{purchasePrice.toLocaleString()} ر.س</td>
+
+                    <td className="font-semibold text-violet-300">
+                      {totalProductPrice.toLocaleString()} ر.س
                     </td>
 
-                    <td>{Number(product.purchasePrice || 0).toLocaleString()} ر.س</td>
-                    <td>{Number(product.salePrice || 0).toLocaleString()} ر.س</td>
+                    <td>{salePrice.toLocaleString()} ر.س</td>
 
                     <td>
-                      {(product.quantity || 0) <= (product.minStock || 5) ? (
+                      <span
+                        className={
+                          Number(profitMargin) >= 0
+                            ? "badge badge-success"
+                            : "badge badge-danger"
+                        }
+                      >
+                        {Number(profitMargin) >= 0 ? "+" : ""}
+                        {profitMargin}%
+                      </span>
+                    </td>
+
+                    <td>
+                      {quantity <= Number(product.minStock || 5) ? (
                         <span className="badge badge-danger">منخفض</span>
                       ) : (
                         <span className="badge badge-success">متوفر</span>
@@ -536,6 +516,22 @@ export default function Products() {
                 />
               </div>
 
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-300">
+                  رابط صورة المنتج
+                </label>
+                <input
+                  type="text"
+                  value={formData.image}
+                  onChange={(e) =>
+                    setFormData({ ...formData, image: e.target.value })
+                  }
+                  className="input-field"
+                  placeholder="https://..."
+                  id="product-image"
+                />
+              </div>
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-300">
@@ -556,16 +552,13 @@ export default function Products() {
 
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-300">
-                    سعر الشراء *
+                    سعر الشراء من الصين *
                   </label>
                   <input
                     type="number"
                     value={formData.purchasePrice}
                     onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        purchasePrice: e.target.value,
-                      })
+                      setFormData({ ...formData, purchasePrice: e.target.value })
                     }
                     className="input-field"
                     placeholder="0"
@@ -577,16 +570,13 @@ export default function Products() {
 
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-300">
-                    سعر البيع *
+                    سعر البيع للمشاريع *
                   </label>
                   <input
                     type="number"
                     value={formData.salePrice}
                     onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        salePrice: e.target.value,
-                      })
+                      setFormData({ ...formData, salePrice: e.target.value })
                     }
                     className="input-field"
                     placeholder="0"
