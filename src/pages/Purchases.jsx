@@ -66,4 +66,6 @@ export default function Purchases() {
       }
     })();
 
-    return () =>
+    return (
+      <div>...</div>
+      );
