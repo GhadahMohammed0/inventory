@@ -23,12 +23,34 @@ export default function Receipts() {
   const [loading, setLoading] = useState(true);
   const [showReceipt, setShowReceipt] = useState(null);
 
+  const normalizeReceiptItems = (receipt) => {
+    const rawItems = Array.isArray(receipt?.items) ? receipt.items : [];
+    return rawItems.map((item, index) => ({
+      id: item.id || item.productId || `item-${index}`,
+      productId: item.productId || item.id || '',
+      productName: item.productName || item.name || 'منتج',
+      name: item.name || item.productName || 'منتج',
+      quantity: Number(item.quantity || item.qty || 0),
+      salePrice: Number(item.salePrice || item.price || 0),
+      purchasePrice: Number(item.purchasePrice || item.costPrice || 0),
+      imageUrl: item.imageUrl || item.image || '',
+      image: item.image || item.imageUrl || '',
+    }));
+  };
+
   async function fetchData() {
     const receiptsSnap = await getDocs(collection(db, "receipts"));
 
     return {
       receipts: receiptsSnap.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
+        .map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            ...data,
+            items: normalizeReceiptItems(data),
+          };
+        })
         .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")),
     };
   }
@@ -102,7 +124,8 @@ export default function Receipts() {
   };
 
   const buildReceiptCardHtml = (receipt) => {
-    const grandTotal = (receipt.items || []).reduce(
+    const items = normalizeReceiptItems(receipt);
+    const grandTotal = items.reduce(
       (s, i) => s + (i.salePrice || 0) * i.quantity,
       0
     );
@@ -134,15 +157,15 @@ export default function Receipts() {
             </tr>
           </thead>
           <tbody>
-            ${(receipt.items || [])
+            ${items
               .map(
                 (item, i) => `
                 <tr>
                   <td>${i + 1}</td>
                   <td>
                     ${
-                      item.image
-                        ? `<img src="${item.image}" alt="${item.productName || "منتج"}" class="product-image-print" />`
+                      item.imageUrl
+                        ? `<img src="${item.imageUrl}" alt="${item.productName || "منتج"}" class="product-image-print" />`
                         : `<span class="no-image">لا توجد صورة</span>`
                     }
                   </td>
@@ -425,13 +448,14 @@ export default function Receipts() {
             </thead>
             <tbody>
               {receipts.map((receipt) => {
+                const items = normalizeReceiptItems(receipt);
                 const revenue =
-                  receipt.items?.reduce(
+                  items.reduce(
                     (s, i) => s + (i.salePrice || 0) * i.quantity,
                     0
                   ) || 0;
                 const cost =
-                  receipt.items?.reduce(
+                  items.reduce(
                     (s, i) => s + (i.purchasePrice || 0) * i.quantity,
                     0
                   ) || 0;
@@ -445,7 +469,7 @@ export default function Receipts() {
                     <td style={{ fontWeight: 600, color: "var(--text-primary)" }}>
                       {receipt.engineerName}
                     </td>
-                    <td>{receipt.items?.length || 0} صنف</td>
+                    <td>{items.length || 0} صنف</td>
                     <td style={{ color: "var(--gold-primary)", fontWeight: 700 }}>
                       {revenue.toLocaleString()} ر.س
                     </td>
@@ -640,13 +664,13 @@ export default function Receipts() {
                   </tr>
                 </thead>
                 <tbody>
-                  {showReceipt.items?.map((item, index) => (
+                  {normalizeReceiptItems(showReceipt).map((item, index) => (
                     <tr key={index}>
                       <td>{index + 1}</td>
                       <td>
-                        {item.image ? (
+                        {item.imageUrl ? (
                           <img
-                            src={item.image}
+                            src={item.imageUrl}
                             alt={item.productName || "منتج"}
                             style={{
                               width: 48,
@@ -694,7 +718,7 @@ export default function Receipts() {
                   المبلغ الإجمالي
                 </strong>
                 <strong style={{ color: "var(--gold-primary)", fontSize: 18 }}>
-                  {(showReceipt.items || [])
+                  {normalizeReceiptItems(showReceipt)
                     .reduce((s, i) => s + (i.salePrice || 0) * i.quantity, 0)
                     .toLocaleString()}{" "}
                   ر.س
