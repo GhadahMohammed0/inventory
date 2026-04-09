@@ -106,3 +106,5 @@ export default function Receipts() {
       (s, i) => s + (i.salePrice || 0) * i.quantity,
       0
     );
+
+    
