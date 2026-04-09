@@ -8,6 +8,7 @@ import {
   increment,
   deleteDoc,
   writeBatch,
+  addDoc,
 } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -32,11 +33,40 @@ export default function Orders() {
     fetchOrders();
   }, []);
 
+  const normalizeOrderItems = (order) => {
+    const rawItems = Array.isArray(order?.items)
+      ? order.items
+      : Array.isArray(order?.products)
+      ? order.products
+      : Array.isArray(order?.cartItems)
+      ? order.cartItems
+      : [];
+
+    return rawItems.map((item, index) => ({
+      id: item.id || item.productId || `item-${index}`,
+      productId: item.productId || item.id || '',
+      productName: item.productName || item.name || item.title || 'منتج',
+      name: item.name || item.productName || item.title || 'منتج',
+      quantity: Number(item.quantity || item.qty || 0),
+      salePrice: Number(item.salePrice || item.price || 0),
+      purchasePrice: Number(item.purchasePrice || item.costPrice || 0),
+      imageUrl: item.imageUrl || item.image || '',
+      image: item.image || item.imageUrl || '',
+    }));
+  };
+
   const fetchOrders = async () => {
     try {
       const snap = await getDocs(collection(db, 'orders'));
       const data = snap.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
+        .map((d) => {
+          const orderData = d.data();
+          return {
+            id: d.id,
+            ...orderData,
+            items: normalizeOrderItems(orderData),
+          };
+        })
         .sort((a, b) => {
           const dateA = a.createdAt?.toDate
             ? a.createdAt.toDate()
@@ -46,6 +76,7 @@ export default function Orders() {
             : new Date(b.createdAt || 0);
           return dateB - dateA;
         });
+
       setOrders(data);
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -55,9 +86,10 @@ export default function Orders() {
   };
 
   const restoreOrderStock = async (order) => {
-    if (!order?.items?.length) return;
+    const items = normalizeOrderItems(order);
+    if (!items.length) return;
 
-    for (const item of order.items) {
+    for (const item of items) {
       if (item.productId) {
         await updateDoc(doc(db, 'products', item.productId), {
           quantity: increment(Number(item.quantity || 0)),
@@ -67,9 +99,10 @@ export default function Orders() {
   };
 
   const deductOrderStock = async (order) => {
-    if (!order?.items?.length) return;
+    const items = normalizeOrderItems(order);
+    if (!items.length) return;
 
-    for (const item of order.items) {
+    for (const item of items) {
       if (item.productId) {
         await updateDoc(doc(db, 'products', item.productId), {
           quantity: increment(-Number(item.quantity || 0)),
@@ -89,6 +122,54 @@ export default function Orders() {
     }
   };
 
+  const generateReceiptNumber = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const time = String(now.getTime()).slice(-5);
+    return `REC-${year}${month}${day}-${time}`;
+  };
+
+  const createReceiptForOrder = async (order) => {
+    const normalizedItems = normalizeOrderItems(order);
+
+    if (!normalizedItems.length) {
+      throw new Error('لا توجد منتجات داخل الطلب');
+    }
+
+    const receiptsSnap = await getDocs(collection(db, 'receipts'));
+    const existingReceipt = receiptsSnap.docs.find(
+      (receiptDoc) => receiptDoc.data()?.orderId === order.id
+    );
+
+    if (existingReceipt) {
+      return existingReceipt.id;
+    }
+
+    const receiptData = {
+      orderId: order.id,
+      engineerId: order.engineerId || order.userId || '',
+      engineerName: order.engineerName || 'مهندس',
+      receiptNumber: generateReceiptNumber(),
+      items: normalizedItems.map((item) => ({
+        productId: item.productId || '',
+        productName: item.productName || item.name || 'منتج',
+        name: item.name || item.productName || 'منتج',
+        quantity: Number(item.quantity || 0),
+        salePrice: Number(item.salePrice || 0),
+        purchasePrice: Number(item.purchasePrice || 0),
+        imageUrl: item.imageUrl || '',
+        image: item.image || item.imageUrl || '',
+      })),
+      notes: order.note || '',
+      createdAt: new Date().toISOString(),
+    };
+
+    const newReceiptRef = await addDoc(collection(db, 'receipts'), receiptData);
+    return newReceiptRef.id;
+  };
+
   const handleApprove = async (order) => {
     try {
       if (order.status === 'approved' || order.status === 'completed') {
@@ -96,14 +177,28 @@ export default function Orders() {
         return;
       }
 
+      const normalizedItems = normalizeOrderItems(order);
+
+      if (!normalizedItems.length) {
+        toast.error('هذا الطلب لا يحتوي على منتجات');
+        return;
+      }
+
+      await deductOrderStock({ ...order, items: normalizedItems });
+
+      const receiptId = await createReceiptForOrder({
+        ...order,
+        items: normalizedItems,
+      });
+
       await updateDoc(doc(db, 'orders', order.id), {
         status: 'approved',
         updatedAt: new Date().toISOString(),
+        items: normalizedItems,
+        receiptId,
       });
 
-      await deductOrderStock(order);
-
-      toast.success('تمت الموافقة على الطلب');
+      toast.success('تمت الموافقة على الطلب وإضافته للفواتير');
       fetchOrders();
     } catch (error) {
       console.error('Error approving order:', error);
@@ -163,11 +258,15 @@ export default function Orders() {
       const ordersSnap = await getDocs(collection(db, 'orders'));
       const receiptsSnap = await getDocs(collection(db, 'receipts'));
 
-      const ordersData = ordersSnap.docs.map((d) => ({
-        id: d.id,
-        ref: d.ref,
-        ...d.data(),
-      }));
+      const ordersData = ordersSnap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          ref: d.ref,
+          ...data,
+          items: normalizeOrderItems(data),
+        };
+      });
 
       for (const order of ordersData) {
         if (order.status === 'approved' || order.status === 'completed') {
@@ -178,7 +277,6 @@ export default function Orders() {
       const batch = writeBatch(db);
 
       ordersData.forEach((order) => batch.delete(order.ref));
-
       receiptsSnap.docs.forEach((receiptDoc) => batch.delete(receiptDoc.ref));
 
       await batch.commit();
@@ -315,7 +413,7 @@ export default function Orders() {
                       className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
                     >
                       <HiOutlineEye size={14} />
-                      {order.items?.length || 0} منتج
+                      {normalizeOrderItems(order).length || 0} منتج
                     </button>
                   </td>
 
@@ -503,7 +601,7 @@ export default function Orders() {
               <div className="border-t border-white/5 pt-4 mt-2">
                 <h3 className="text-sm font-bold text-slate-300 mb-3">المنتجات المطلوبة</h3>
                 <div className="flex flex-col gap-2">
-                  {selectedOrder.items?.map((item, index) => (
+                  {normalizeOrderItems(selectedOrder).map((item, index) => (
                     <div
                       key={index}
                       className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03]"
@@ -516,6 +614,12 @@ export default function Orders() {
                       </span>
                     </div>
                   ))}
+
+                  {normalizeOrderItems(selectedOrder).length === 0 && (
+                    <div className="p-3 rounded-xl bg-white/[0.03] text-slate-400 text-sm text-center">
+                      لا توجد منتجات داخل هذا الطلب
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -524,6 +628,4 @@ export default function Orders() {
       )}
     </div>
   );
-}  
-
-
+}
