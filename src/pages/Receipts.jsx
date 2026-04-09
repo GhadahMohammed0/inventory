@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   collection,
   addDoc,
@@ -33,7 +33,6 @@ export default function Receipts() {
     items: [],
     notes: "",
   });
-  const receiptRef = useRef();
 
   async function fetchData() {
     const [receiptsSnap, ordersSnap, productsSnap] = await Promise.all([
@@ -94,6 +93,11 @@ export default function Receipts() {
     return p?.salePrice ?? fallbackPrice ?? 0;
   };
 
+  const getProductImage = (productId, fallbackImage = "") => {
+    const p = products.find((x) => x.id === productId);
+    return p?.image || fallbackImage || "";
+  };
+
   const handleOrderSelect = (orderId) => {
     setSelectedOrderId(orderId);
     const order = orders.find((item) => item.id === orderId);
@@ -102,6 +106,7 @@ export default function Receipts() {
       const enrichedItems = (order.items || []).map((item) => ({
         ...item,
         salePrice: getSalePrice(item.productId, item.salePrice),
+        image: getProductImage(item.productId, item.image),
         purchasePrice:
           products.find((x) => x.id === item.productId)?.purchasePrice ??
           item.purchasePrice ??
@@ -128,6 +133,7 @@ export default function Receipts() {
       const itemsWithPrices = formData.items.map((item) => ({
         ...item,
         salePrice: item.salePrice || getSalePrice(item.productId, 0),
+        image: item.image || getProductImage(item.productId, ""),
         lineTotal: (item.salePrice || 0) * item.quantity,
       }));
 
@@ -135,6 +141,7 @@ export default function Receipts() {
         (s, i) => s + (i.salePrice || 0) * i.quantity,
         0
       );
+
       const totalCost = itemsWithPrices.reduce(
         (s, i) => s + (i.purchasePrice || 0) * i.quantity,
         0
@@ -194,111 +201,6 @@ export default function Receipts() {
     }
   };
 
-  const handlePrint = () => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      toast.error("تعذر فتح نافذة الطباعة");
-      return;
-    }
-
-    const receipt = showReceipt;
-    const grandTotal = (receipt.items || []).reduce(
-      (s, i) => s + (i.salePrice || 0) * i.quantity,
-      0
-    );
-
-    printWindow.document.write(`
-      <html dir="rtl">
-        <head>
-          <title>فاتورة ${receipt.receiptNumber}</title>
-          <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-          <style>
-            * { margin:0; padding:0; box-sizing:border-box; }
-            body { font-family:'Tajawal',sans-serif; direction:rtl; background:#fff; color:#1a1208; }
-            .receipt { max-width:640px; margin:30px auto; padding:32px; border:1px solid #e7c97a; border-radius:16px; }
-            .header { text-align:center; border-bottom:2px dashed #d4a847; padding-bottom:20px; margin-bottom:20px; }
-            .logo-icon { width:56px; height:56px; margin:0 auto 10px; background:linear-gradient(135deg,#C9A84C,#9d7d2e); border-radius:14px; display:flex; align-items:center; justify-content:center; }
-            .header h1 { font-size:22px; font-weight:800; color:#1a1208; margin-top:8px; }
-            .header p { color:#9d7d2e; margin-top:4px; font-size:13px; }
-            .meta { display:flex; gap:16px; justify-content:center; margin-top:10px; font-size:12px; color:#7a5f1f; }
-            .info-row { display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px; }
-            table { width:100%; border-collapse:collapse; margin:18px 0; }
-            th, td { padding:10px 12px; text-align:right; border-bottom:1px solid #edd98a; font-size:13px; }
-            th { background:#fdf3de; color:#C9A84C; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; }
-            .total-row td { font-weight:800; font-size:16px; color:#C9A84C; border-top:2px solid #d4a847; border-bottom:none; padding-top:14px; }
-            .footer { text-align:center; margin-top:24px; padding-top:16px; border-top:2px dashed #d4a847; font-size:12px; color:#9d7d2e; }
-            .footer .brand { font-size:15px; font-weight:800; color:#C9A84C; margin-bottom:4px; }
-          </style>
-        </head>
-        <body>
-          <div class="receipt">
-            <div class="header">
-              <div class="logo-icon">
-                <svg width="28" height="28" viewBox="0 0 26 26" fill="none">
-                  <rect x="10" y="7" width="6" height="14" rx="0.8" fill="white"/>
-                  <rect x="4" y="11" width="5" height="10" rx="0.8" fill="white" opacity="0.85"/>
-                  <rect x="17" y="10" width="5" height="11" rx="0.8" fill="white" opacity="0.85"/>
-                  <polygon points="13,2 9,7 17,7" fill="white"/>
-                  <polygon points="6.5,8 3.5,11 9.5,11" fill="white" opacity="0.85"/>
-                  <polygon points="19.5,7 16.5,10 22.5,10" fill="white" opacity="0.85"/>
-                </svg>
-              </div>
-              <h1>سعود العقارية</h1>
-              <p>فاتورة صرف مواد</p>
-              <div class="meta">
-                <span>رقم الفاتورة: ${receipt.receiptNumber}</span>
-                <span>التاريخ: ${new Date(receipt.createdAt).toLocaleDateString("ar-SA", { year:"numeric", month:"long", day:"numeric" })}</span>
-              </div>
-            </div>
-            <div class="info-row">
-              <span style="color:#9d7d2e">اسم المهندس:</span>
-              <strong>${receipt.engineerName}</strong>
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>المنتج</th>
-                  <th>سعر الوحدة</th>
-                  <th>الكمية</th>
-                  <th>الإجمالي</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${(receipt.items || [])
-                  .map(
-                    (item, i) => `
-                  <tr>
-                    <td>${i + 1}</td>
-                    <td>${item.productName || item.name || "منتج"}</td>
-                    <td>${(item.salePrice || 0).toLocaleString()} ر.س</td>
-                    <td>${item.quantity}</td>
-                    <td>${((item.salePrice || 0) * item.quantity).toLocaleString()} ر.س</td>
-                  </tr>`
-                  )
-                  .join("")}
-              </tbody>
-              <tfoot>
-                <tr class="total-row">
-                  <td colspan="4">الإجمالي الكلي</td>
-                  <td>${grandTotal.toLocaleString()} ر.س</td>
-                </tr>
-              </tfoot>
-            </table>
-            ${receipt.notes ? `<p style="font-size:13px;color:#7a5f1f;margin-top:8px"><strong>ملاحظات:</strong> ${receipt.notes}</p>` : ""}
-            <div class="footer">
-              <div class="brand">سعود العقارية</div>
-              <p>نبني ثقة ونحقق طموح</p>
-            </div>
-          </div>
-          <script>window.print(); window.close();</script>
-        </body>
-      </html>
-    `);
-
-    printWindow.document.close();
-  };
-
   const formatDate = (dateStr) => {
     if (!dateStr) return "-";
     return new Date(dateStr).toLocaleDateString("ar-SA", {
@@ -306,6 +208,239 @@ export default function Receipts() {
       month: "long",
       day: "numeric",
     });
+  };
+
+  const buildReceiptHtml = (receipt) => {
+    const grandTotal = (receipt.items || []).reduce(
+      (s, i) => s + (i.salePrice || 0) * i.quantity,
+      0
+    );
+
+    return `
+      <html dir="rtl">
+        <head>
+          <meta charset="UTF-8" />
+          <title>فاتورة ${receipt.receiptNumber}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              direction: rtl;
+              background: #fff;
+              color: #222;
+              padding: 24px;
+            }
+            .receipt {
+              max-width: 820px;
+              margin: 0 auto;
+              border: 1px solid #ddd;
+              border-radius: 16px;
+              padding: 24px;
+            }
+            .header {
+              text-align: center;
+              border-bottom: 2px solid #eee;
+              padding-bottom: 16px;
+              margin-bottom: 20px;
+            }
+            .company {
+              font-size: 26px;
+              font-weight: 800;
+              margin-bottom: 8px;
+            }
+            .meta {
+              display: flex;
+              justify-content: center;
+              gap: 18px;
+              font-size: 13px;
+              color: #666;
+              flex-wrap: wrap;
+            }
+            .customer-box {
+              background: #f8f8f8;
+              border-radius: 10px;
+              padding: 12px 14px;
+              margin-bottom: 18px;
+              font-size: 14px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 14px;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 10px;
+              text-align: right;
+              vertical-align: middle;
+              font-size: 13px;
+            }
+            th {
+              background: #f5f5f5;
+            }
+            .img-box {
+              width: 52px;
+              height: 52px;
+              border-radius: 10px;
+              object-fit: cover;
+              border: 1px solid #ddd;
+            }
+            .total-box {
+              margin-top: 18px;
+              text-align: left;
+              font-size: 18px;
+              font-weight: 800;
+            }
+            .notes {
+              margin-top: 18px;
+              font-size: 13px;
+              color: #555;
+            }
+            .footer {
+              margin-top: 28px;
+              padding-top: 14px;
+              border-top: 1px dashed #bbb;
+              text-align: center;
+              font-size: 13px;
+              color: #666;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="receipt">
+            <div class="header">
+              <div class="company">شركة سعود العقارية</div>
+              <div class="meta">
+                <span>رقم الفاتورة: ${receipt.receiptNumber}</span>
+                <span>التاريخ: ${formatDate(receipt.createdAt)}</span>
+              </div>
+            </div>
+
+            <div class="customer-box">
+              <strong>اسم صاحب الطلب:</strong> ${receipt.engineerName || "-"}
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>الصورة</th>
+                  <th>المنتج</th>
+                  <th>الكمية</th>
+                  <th>سعر الوحدة</th>
+                  <th>الإجمالي</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(receipt.items || [])
+                  .map(
+                    (item, i) => `
+                    <tr>
+                      <td>${i + 1}</td>
+                      <td>
+                        ${
+                          item.image
+                            ? `<img src="${item.image}" alt="${item.productName || "منتج"}" class="img-box" />`
+                            : `-`
+                        }
+                      </td>
+                      <td>${item.productName || item.name || "منتج"}</td>
+                      <td>${item.quantity}</td>
+                      <td>${(item.salePrice || 0).toLocaleString()} ر.س</td>
+                      <td>${((item.salePrice || 0) * item.quantity).toLocaleString()} ر.س</td>
+                    </tr>
+                  `
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+
+            <div class="total-box">
+              المبلغ الإجمالي: ${grandTotal.toLocaleString()} ر.س
+            </div>
+
+            ${
+              receipt.notes
+                ? `<div class="notes"><strong>ملاحظات:</strong> ${receipt.notes}</div>`
+                : ""
+            }
+
+            <div class="footer">
+              شركة سعود العقارية
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+  };
+
+  const handlePrint = () => {
+    if (!showReceipt) return;
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error("تعذر فتح نافذة الطباعة");
+      return;
+    }
+
+    printWindow.document.write(buildReceiptHtml(showReceipt));
+    printWindow.document.write(`
+      <script>
+        window.onload = function () {
+          window.print();
+          window.close();
+        };
+      </script>
+    `);
+    printWindow.document.close();
+  };
+
+  const handlePrintAllReceipts = () => {
+    if (!receipts.length) {
+      toast.error("لا توجد فواتير للطباعة");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error("تعذر فتح نافذة الطباعة");
+      return;
+    }
+
+    const allReceiptsHtml = receipts
+      .map(
+        (receipt, index) => `
+          <div style="${index > 0 ? "page-break-before: always;" : ""}">
+            ${buildReceiptHtml(receipt)}
+          </div>
+        `
+      )
+      .join("");
+
+    printWindow.document.write(`
+      <html dir="rtl">
+        <head>
+          <meta charset="UTF-8" />
+          <title>طباعة جميع الفواتير</title>
+          <style>
+            body { margin: 0; padding: 0; }
+            @media print {
+              .page-break { page-break-before: always; }
+            }
+          </style>
+        </head>
+        <body>
+          ${allReceiptsHtml}
+          <script>
+            window.onload = function () {
+              window.print();
+              window.close();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
   };
 
   if (loading) {
@@ -335,13 +470,24 @@ export default function Receipts() {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowModal(true)}
-          className="btn-primary justify-center"
-        >
-          <HiOutlinePlus size={18} />
-          إنشاء فاتورة
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            onClick={handlePrintAllReceipts}
+            className="btn-secondary justify-center"
+            type="button"
+          >
+            <HiOutlinePrinter size={18} />
+            طباعة كل الفواتير
+          </button>
+
+          <button
+            onClick={() => setShowModal(true)}
+            className="btn-primary justify-center"
+          >
+            <HiOutlinePlus size={18} />
+            إنشاء فاتورة
+          </button>
+        </div>
       </div>
 
       {receipts.length === 0 ? (
@@ -429,16 +575,27 @@ export default function Receipts() {
                             background: "transparent",
                             cursor: "pointer",
                           }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background =
-                              "rgba(201,168,76,0.1)")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "transparent")
-                          }
                           title="عرض"
                         >
                           <HiOutlineEye size={17} />
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setShowReceipt(receipt);
+                            setTimeout(() => handlePrint(), 100);
+                          }}
+                          style={{
+                            padding: 7,
+                            borderRadius: 9,
+                            color: "#2563eb",
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                          }}
+                          title="طباعة الفاتورة"
+                        >
+                          <HiOutlinePrinter size={17} />
                         </button>
 
                         {isAdmin && (
@@ -452,13 +609,6 @@ export default function Receipts() {
                               background: "transparent",
                               cursor: "pointer",
                             }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.background =
-                                "rgba(239,68,68,0.08)")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = "transparent")
-                            }
                             title="حذف"
                           >
                             <HiOutlineTrash size={17} />
@@ -564,74 +714,54 @@ export default function Receipts() {
                           border: "1px solid var(--border-color)",
                         }}
                       >
-                        <div>
-                          <span
-                            style={{
-                              color: "var(--text-primary)",
-                              fontWeight: 600,
-                              fontSize: 14,
-                            }}
-                          >
-                            {item.productName}
-                          </span>
-                          <div
-                            style={{
-                              color: "var(--text-muted)",
-                              fontSize: 12,
-                              marginTop: 2,
-                            }}
-                          >
-                            {item.salePrice?.toLocaleString()} ر.س × {item.quantity} =
-                            <strong style={{ color: "var(--gold-primary)" }}>
-                              {" "}
-                              {(
-                                (item.salePrice || 0) * item.quantity
-                              ).toLocaleString()}{" "}
-                              ر.س
-                            </strong>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          {item.image ? (
+                            <img
+                              src={item.image}
+                              alt={item.productName}
+                              style={{
+                                width: 48,
+                                height: 48,
+                                objectFit: "cover",
+                                borderRadius: 10,
+                                border: "1px solid var(--border-color)",
+                              }}
+                            />
+                          ) : null}
+                          <div>
+                            <span
+                              style={{
+                                color: "var(--text-primary)",
+                                fontWeight: 600,
+                                fontSize: 14,
+                              }}
+                            >
+                              {item.productName}
+                            </span>
+                            <div
+                              style={{
+                                color: "var(--text-muted)",
+                                fontSize: 12,
+                                marginTop: 2,
+                              }}
+                            >
+                              {item.salePrice?.toLocaleString()} ر.س × {item.quantity} =
+                              <strong style={{ color: "var(--gold-primary)" }}>
+                                {" "}
+                                {(
+                                  (item.salePrice || 0) * item.quantity
+                                ).toLocaleString()}{" "}
+                                ر.س
+                              </strong>
+                            </div>
                           </div>
                         </div>
+
                         <span className="badge badge-gold">
                           الكمية: {item.quantity}
                         </span>
                       </div>
                     ))}
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: 12,
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      background: "rgba(201,168,76,0.1)",
-                      border: "1px solid rgba(201,168,76,0.3)",
-                      display: "flex",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <span
-                      style={{
-                        color: "var(--text-secondary)",
-                        fontWeight: 600,
-                      }}
-                    >
-                      الإجمالي الكلي
-                    </span>
-                    <span
-                      style={{
-                        color: "var(--gold-primary)",
-                        fontWeight: 800,
-                        fontSize: 16,
-                      }}
-                    >
-                      {formData.items
-                        .reduce(
-                          (s, i) => s + (i.salePrice || 0) * i.quantity,
-                          0
-                        )
-                        .toLocaleString()}{" "}
-                      ر.س
-                    </span>
                   </div>
                 </div>
               )}
@@ -679,8 +809,8 @@ export default function Receipts() {
       {showReceipt && (
         <div className="modal-overlay" onClick={() => setShowReceipt(null)}>
           <div
-            className="modal-content max-w-3xl"
-            style={{ maxWidth: 700 }}
+            className="modal-content"
+            style={{ maxWidth: 760 }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between gap-3">
@@ -691,7 +821,7 @@ export default function Receipts() {
                   fontSize: 20,
                 }}
               >
-                فاتورة صرف
+                فاتورة
               </h2>
               <div className="flex items-center gap-2">
                 <button
@@ -704,7 +834,7 @@ export default function Receipts() {
                     background: "var(--bg-surface-2)",
                     cursor: "pointer",
                   }}
-                  title="طباعة"
+                  title="طباعة الفاتورة"
                 >
                   <HiOutlinePrinter size={19} />
                 </button>
@@ -724,75 +854,53 @@ export default function Receipts() {
               </div>
             </div>
 
-            <div ref={receiptRef} className="receipt mx-auto w-full">
-              <div className="receipt-header">
-                <div
-                  style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 13,
-                    margin: "0 auto 10px",
-                    background: "linear-gradient(135deg,#C9A84C,#9d7d2e)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
-                    <rect x="10" y="7" width="6" height="14" rx="0.8" fill="white" />
-                    <rect x="4" y="11" width="5" height="10" rx="0.8" fill="white" opacity="0.85" />
-                    <rect x="17" y="10" width="5" height="11" rx="0.8" fill="white" opacity="0.85" />
-                    <polygon points="13,2 9,7 17,7" fill="white" />
-                  </svg>
-                </div>
-
-                <h1 style={{ fontSize: 20, fontWeight: 800, color: "var(--receipt-text)" }}>
-                  سعود العقارية
+            <div
+              style={{
+                border: "1px solid var(--border-color)",
+                borderRadius: 16,
+                padding: 20,
+                background: "var(--bg-card)",
+              }}
+            >
+              <div style={{ textAlign: "center", marginBottom: 18 }}>
+                <h1 style={{ color: "var(--text-primary)", fontSize: 24, fontWeight: 800 }}>
+                  شركة سعود العقارية
                 </h1>
-                <p style={{ color: "var(--text-muted)", marginTop: 4, fontSize: 13 }}>
+                <p style={{ color: "var(--text-muted)", marginTop: 4 }}>
                   فاتورة صرف مواد
                 </p>
-
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    gap: 16,
-                    marginTop: 8,
-                    fontSize: 12,
-                    color: "var(--text-muted)",
-                  }}
-                >
+                <div style={{ marginTop: 8, color: "var(--text-muted)", fontSize: 13 }}>
                   <span>رقم الفاتورة: {showReceipt.receiptNumber}</span>
-                  <span>التاريخ: {formatDate(showReceipt.createdAt)}</span>
+                  <span style={{ marginRight: 14 }}>
+                    التاريخ: {formatDate(showReceipt.createdAt)}
+                  </span>
                 </div>
               </div>
 
               <div
                 style={{
-                  marginBottom: 16,
-                  padding: "10px 14px",
                   background: "var(--bg-surface-2)",
-                  borderRadius: 10,
+                  borderRadius: 12,
+                  padding: "12px 14px",
+                  marginBottom: 16,
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text-muted)", fontSize: 13 }}>
-                    المهندس:
-                  </span>
-                  <strong style={{ color: "var(--receipt-text)" }}>
-                    {showReceipt.engineerName}
-                  </strong>
-                </div>
+                <strong style={{ color: "var(--text-primary)" }}>
+                  اسم صاحب الطلب:
+                </strong>
+                <span style={{ color: "var(--text-primary)", marginRight: 8 }}>
+                  {showReceipt.engineerName}
+                </span>
               </div>
 
               <table className="receipt-table">
                 <thead>
                   <tr>
                     <th>#</th>
+                    <th>الصورة</th>
                     <th>المنتج</th>
-                    <th>سعر الوحدة</th>
                     <th>الكمية</th>
+                    <th>سعر الوحدة</th>
                     <th>الإجمالي</th>
                   </tr>
                 </thead>
@@ -800,57 +908,64 @@ export default function Receipts() {
                   {showReceipt.items?.map((item, index) => (
                     <tr key={index}>
                       <td>{index + 1}</td>
+                      <td>
+                        {item.image ? (
+                          <img
+                            src={item.image}
+                            alt={item.productName || "منتج"}
+                            style={{
+                              width: 48,
+                              height: 48,
+                              objectFit: "cover",
+                              borderRadius: 10,
+                              border: "1px solid var(--border-color)",
+                            }}
+                          />
+                        ) : (
+                          <span style={{ color: "var(--text-muted)" }}>-</span>
+                        )}
+                      </td>
                       <td style={{ fontWeight: 600 }}>
                         {item.productName || item.name || "منتج"}
                       </td>
-                      <td>{(item.salePrice || 0).toLocaleString()} ر.س</td>
                       <td>{item.quantity}</td>
+                      <td>{(item.salePrice || 0).toLocaleString()} ر.س</td>
                       <td style={{ fontWeight: 700, color: "var(--gold-primary)" }}>
                         {((item.salePrice || 0) * item.quantity).toLocaleString()} ر.س
                       </td>
                     </tr>
                   ))}
                 </tbody>
-                <tfoot>
-                  <tr className="receipt-total-row">
-                    <td colSpan="4">الإجمالي الكلي</td>
-                    <td>
-                      {(showReceipt.items || [])
-                        .reduce((s, i) => s + (i.salePrice || 0) * i.quantity, 0)
-                        .toLocaleString()}{" "}
-                      ر.س
-                    </td>
-                  </tr>
-                </tfoot>
               </table>
-
-              {showReceipt.notes && (
-                <p style={{ marginTop: 14, fontSize: 12, color: "var(--text-muted)" }}>
-                  <strong>ملاحظات:</strong> {showReceipt.notes}
-                </p>
-              )}
 
               <div
                 style={{
-                  marginTop: 24,
-                  paddingTop: 16,
-                  borderTop: "2px dashed var(--receipt-border)",
-                  textAlign: "center",
+                  marginTop: 20,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "12px 14px",
+                  borderRadius: 12,
+                  background: "rgba(201,168,76,0.08)",
+                  border: "1px solid rgba(201,168,76,0.25)",
                 }}
               >
-                <p
-                  style={{
-                    fontWeight: 800,
-                    color: "var(--gold-primary)",
-                    fontSize: 14,
-                  }}
-                >
-                  سعود العقارية
-                </p>
-                <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
-                  نبني ثقة ونحقق طموح
-                </p>
+                <strong style={{ color: "var(--text-primary)" }}>
+                  المبلغ الإجمالي
+                </strong>
+                <strong style={{ color: "var(--gold-primary)", fontSize: 18 }}>
+                  {(showReceipt.items || [])
+                    .reduce((s, i) => s + (i.salePrice || 0) * i.quantity, 0)
+                    .toLocaleString()}{" "}
+                  ر.س
+                </strong>
               </div>
+
+              {showReceipt.notes ? (
+                <p style={{ marginTop: 14, fontSize: 12, color: "var(--text-muted)" }}>
+                  <strong>ملاحظات:</strong> {showReceipt.notes}
+                </p>
+              ) : null}
             </div>
           </div>
         </div>
