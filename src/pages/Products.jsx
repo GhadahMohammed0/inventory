@@ -103,6 +103,24 @@ export default function Products() {
     };
   }, []);
 
+  const handleImageUpload = (file) => {
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("يرجى اختيار صورة فقط");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData((prev) => ({
+        ...prev,
+        image: reader.result,
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -574,18 +592,31 @@ export default function Products() {
                     marginBottom: 8,
                   }}
                 >
-                  رابط صورة المنتج
+                  صورة المنتج
                 </label>
+
                 <input
-                  type="text"
-                  value={formData.image}
-                  onChange={(e) =>
-                    setFormData({ ...formData, image: e.target.value })
-                  }
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleImageUpload(e.target.files?.[0])}
                   className="input-field"
-                  placeholder="https://..."
-                  id="product-image"
                 />
+
+                {formData.image ? (
+                  <div style={{ marginTop: 10 }}>
+                    <img
+                      src={formData.image}
+                      alt="Preview"
+                      style={{
+                        width: 90,
+                        height: 90,
+                        objectFit: "cover",
+                        borderRadius: 12,
+                        border: "1px solid var(--border-color)",
+                      }}
+                    />
+                  </div>
+                ) : null}
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -766,4 +797,3 @@ export default function Products() {
     </div>
   );
 }
-
