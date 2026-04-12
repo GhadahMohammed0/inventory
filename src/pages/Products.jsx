@@ -7,6 +7,7 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  writeBatch,
 } from "firebase/firestore";
 import toast from "react-hot-toast";
 import {
@@ -49,6 +50,7 @@ const FALLBACK_CATEGORY = {
 export default function Products() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [migrating, setMigrating] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -102,6 +104,51 @@ export default function Products() {
       isMounted = false;
     };
   }, []);
+
+  const handleInitializePurchasedQuantities = async () => {
+    const confirmed = window.confirm(
+      "سيتم تثبيت إجمالي الكمية المشتراة الحالية لكل المنتجات الحالية مرة واحدة. هل تريدين المتابعة؟"
+    );
+    if (!confirmed) return;
+
+    setMigrating(true);
+
+    try {
+      const snap = await getDocs(collection(db, "products"));
+      const batch = writeBatch(db);
+      let updatedCount = 0;
+
+      snap.docs.forEach((productDoc) => {
+        const data = productDoc.data();
+        const hasPurchasedQuantity =
+          data.totalPurchasedQuantity !== undefined &&
+          data.totalPurchasedQuantity !== null;
+
+        if (!hasPurchasedQuantity) {
+          batch.update(doc(db, "products", productDoc.id), {
+            totalPurchasedQuantity: Number(data.quantity || 0),
+            updatedAt: new Date().toISOString(),
+          });
+          updatedCount += 1;
+        }
+      });
+
+      if (updatedCount === 0) {
+        toast("كل المنتجات مهيأة بالفعل");
+        setMigrating(false);
+        return;
+      }
+
+      await batch.commit();
+      toast.success(`تم تثبيت ${updatedCount} منتج بنجاح`);
+      await refreshProducts();
+    } catch (error) {
+      console.error(error);
+      toast.error("حدث خطأ أثناء تثبيت الكميات المشتراة");
+    } finally {
+      setMigrating(false);
+    }
+  };
 
   const handleImageUpload = (file) => {
     if (!file) return;
@@ -258,9 +305,16 @@ export default function Products() {
       .map((product, index) => {
         const category = getCategoryMeta(product.category);
         const quantity = Number(product.quantity || 0);
+        const totalPurchasedQuantity = Number(
+          product.totalPurchasedQuantity ??
+            product.initialQuantity ??
+            product.purchasedQuantity ??
+            product.quantity ??
+            0
+        );
         const purchasePrice = Number(product.purchasePrice || 0);
         const salePrice = Number(product.salePrice || 0);
-        const totalProductPrice = quantity * purchasePrice;
+        const totalPurchaseValue = totalPurchasedQuantity * purchasePrice;
         const profitMargin =
           purchasePrice > 0
             ? (((salePrice - purchasePrice) / purchasePrice) * 100).toFixed(1)
@@ -272,8 +326,9 @@ export default function Products() {
             <td>${product.name || "-"}</td>
             <td>${category.name}</td>
             <td>${quantity}</td>
+            <td>${totalPurchasedQuantity}</td>
             <td>${purchasePrice.toLocaleString()} ر.س</td>
-            <td>${totalProductPrice.toLocaleString()} ر.س</td>
+            <td>${totalPurchaseValue.toLocaleString()} ر.س</td>
             <td>${salePrice.toLocaleString()} ر.س</td>
             <td>${profitMargin}%</td>
             <td>${quantity <= Number(product.minStock || 5) ? "منخفض" : "متوفر"}</td>
@@ -303,9 +358,10 @@ export default function Products() {
                 <th>#</th>
                 <th>المنتج</th>
                 <th>الفئة</th>
-                <th>الكمية</th>
+                <th>الكمية الحالية</th>
+                <th>إجمالي الكمية المشتراة</th>
                 <th>سعر الشراء من الصين</th>
-                <th>إجمالي سعر المنتج</th>
+                <th>إجمالي قيمة الشراء</th>
                 <th>سعر البيع للمشاريع</th>
                 <th>هامش الربح</th>
                 <th>الحالة</th>
@@ -361,6 +417,15 @@ export default function Products() {
           >
             <HiOutlinePrinter size={18} />
             طباعة المنتجات
+          </button>
+
+          <button
+            onClick={handleInitializePurchasedQuantities}
+            className="btn-secondary justify-center"
+            type="button"
+            disabled={migrating}
+          >
+            {migrating ? "جاري التثبيت..." : "تثبيت المصروفات الحالية"}
           </button>
 
           <button
