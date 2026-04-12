@@ -126,7 +126,7 @@ export default function Products() {
 
     if (
       !formData.name ||
-      !formData.quantity ||
+      formData.quantity === "" ||
       !formData.purchasePrice ||
       !formData.salePrice
     ) {
@@ -135,24 +135,51 @@ export default function Products() {
     }
 
     try {
-      const productData = {
+      const newQuantity = Number(formData.quantity || 0);
+      const purchasePrice = Number(formData.purchasePrice || 0);
+      const salePrice = Number(formData.salePrice || 0);
+      const minStock = Number(formData.minStock) || 5;
+
+      const baseProductData = {
         name: formData.name,
-        quantity: Number(formData.quantity),
-        purchasePrice: Number(formData.purchasePrice),
-        salePrice: Number(formData.salePrice),
+        quantity: newQuantity,
+        purchasePrice,
+        salePrice,
         image: formData.image || "",
         category: formData.category,
-        minStock: Number(formData.minStock) || 5,
+        minStock,
         description: formData.description,
         updatedAt: new Date().toISOString(),
       };
 
       if (editProduct) {
-        await updateDoc(doc(db, "products", editProduct.id), productData);
+        const oldCurrentQuantity = Number(editProduct.quantity || 0);
+        const oldTotalPurchasedQuantity = Number(
+          editProduct.totalPurchasedQuantity ??
+            editProduct.initialQuantity ??
+            editProduct.purchasedQuantity ??
+            oldCurrentQuantity
+        );
+
+        const addedQuantity =
+          newQuantity > oldCurrentQuantity ? newQuantity - oldCurrentQuantity : 0;
+
+        const updatedTotalPurchasedQuantity =
+          oldTotalPurchasedQuantity + addedQuantity;
+
+        await updateDoc(doc(db, "products", editProduct.id), {
+          ...baseProductData,
+          totalPurchasedQuantity: updatedTotalPurchasedQuantity,
+        });
+
         toast.success("تم تعديل المنتج بنجاح");
       } else {
-        productData.createdAt = new Date().toISOString();
-        await addDoc(collection(db, "products"), productData);
+        await addDoc(collection(db, "products"), {
+          ...baseProductData,
+          totalPurchasedQuantity: newQuantity,
+          createdAt: new Date().toISOString(),
+        });
+
         toast.success("تم إضافة المنتج بنجاح");
       }
 
@@ -397,9 +424,10 @@ export default function Products() {
               <tr>
                 <th>المنتج</th>
                 <th>الفئة</th>
-                <th>الكمية</th>
+                <th>الكمية الحالية</th>
+                <th>إجمالي الكمية المشتراة</th>
                 <th>سعر الشراء من الصين</th>
-                <th>إجمالي سعر المنتج</th>
+                <th>إجمالي قيمة الشراء</th>
                 <th>سعر البيع للمشاريع</th>
                 <th>هامش الربح</th>
                 <th>الحالة</th>
@@ -410,9 +438,16 @@ export default function Products() {
               {filteredProducts.map((product) => {
                 const category = getCategoryMeta(product.category);
                 const quantity = Number(product.quantity || 0);
+                const totalPurchasedQuantity = Number(
+                  product.totalPurchasedQuantity ??
+                    product.initialQuantity ??
+                    product.purchasedQuantity ??
+                    product.quantity ??
+                    0
+                );
                 const purchasePrice = Number(product.purchasePrice || 0);
                 const salePrice = Number(product.salePrice || 0);
-                const totalProductPrice = quantity * purchasePrice;
+                const totalPurchaseValue = totalPurchasedQuantity * purchasePrice;
                 const profitMargin =
                   purchasePrice > 0
                     ? (((salePrice - purchasePrice) / purchasePrice) * 100).toFixed(1)
@@ -471,6 +506,10 @@ export default function Products() {
                       {quantity}
                     </td>
 
+                    <td style={{ fontWeight: 700, color: "var(--text-primary)" }}>
+                      {totalPurchasedQuantity}
+                    </td>
+
                     <td style={{ color: "var(--text-primary)" }}>
                       {purchasePrice.toLocaleString()} ر.س
                     </td>
@@ -481,7 +520,7 @@ export default function Products() {
                         color: "var(--gold-primary)",
                       }}
                     >
-                      {totalProductPrice.toLocaleString()} ر.س
+                      {totalPurchaseValue.toLocaleString()} ر.س
                     </td>
 
                     <td style={{ color: "var(--text-primary)" }}>
@@ -630,7 +669,7 @@ export default function Products() {
                       marginBottom: 8,
                     }}
                   >
-                    الكمية *
+                    الكمية الحالية *
                   </label>
                   <input
                     type="number"
