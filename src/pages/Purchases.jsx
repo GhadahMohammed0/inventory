@@ -63,8 +63,6 @@ export default function Purchases() {
     };
   }, []);
 
-  // إجمالي مشتريات المخزون التراكمية
-  // مهم: الأفضل وجود حقل totalPurchasedQuantity أو initialQuantity لكل منتج
   const totalInventoryExpenses = products.reduce((sum, product) => {
     const purchasedQuantity = Number(
       product.totalPurchasedQuantity ??
@@ -78,7 +76,6 @@ export default function Purchases() {
     return sum + purchasedQuantity * purchasePrice;
   }, 0);
 
-  // إجمالي المصروفات الأخرى
   const totalOtherExpenses = otherExpenses.reduce((sum, expense) => {
     return (
       sum +
@@ -92,10 +89,8 @@ export default function Purchases() {
     );
   }, 0);
 
-  // إجمالي المصروفات = مشتريات المخزون + المصروفات الأخرى
   const totalExpenses = totalInventoryExpenses + totalOtherExpenses;
 
-  // إجمالي الإيرادات = الطلبات المعتمدة/المكتملة بسعر البيع
   const totalRevenue = orders.reduce((sum, order) => {
     const orderRevenue = (order.items || []).reduce((itemSum, item) => {
       const product = products.find((p) => p.id === item.productId);
@@ -107,7 +102,6 @@ export default function Purchases() {
     return sum + orderRevenue;
   }, 0);
 
-  // الرصيد النهائي = الإيرادات - المصروفات
   const netBalance = totalRevenue - totalExpenses;
 
   const getOrderTotal = (order) => {
