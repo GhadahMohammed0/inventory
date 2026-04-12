@@ -111,7 +111,13 @@ export default function Purchases() {
     <div className="page-stack animate-fade-in">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="page-header">
-          <h1 style={{ color: "var(--text-primary)", fontSize: 24, fontWeight: 800 }}>
+          <h1
+            style={{
+              color: "var(--text-primary)",
+              fontSize: 24,
+              fontWeight: 800,
+            }}
+          >
             إدارة المشتريات
           </h1>
           <p style={{ color: "var(--text-muted)", fontSize: 13 }}>
@@ -122,54 +128,116 @@ export default function Purchases() {
 
       <div className="finance-summary">
         <div className="finance-card stat-card-revenue">
-          <div className="finance-card-accent" style={{ background: "var(--gold-primary)" }} />
+          <div
+            className="finance-card-accent"
+            style={{ background: "var(--gold-primary)" }}
+          />
           <div className="finance-card-label" style={{ paddingRight: 8 }}>
             <div className="flex items-center gap-2">
-              <HiOutlineTrendingUp size={16} style={{ color: "var(--gold-primary)" }} />
+              <HiOutlineTrendingUp
+                size={16}
+                style={{ color: "var(--gold-primary)" }}
+              />
               إجمالي الإيرادات
             </div>
           </div>
-          <div className="finance-card-value" style={{ color: "var(--gold-primary)", paddingRight: 8 }}>
+          <div
+            className="finance-card-value"
+            style={{ color: "var(--gold-primary)", paddingRight: 8 }}
+          >
             {totalRevenue.toLocaleString()}
-            <span style={{ fontSize: 14, fontWeight: 600, marginRight: 4 }}>ر.س</span>
+            <span style={{ fontSize: 14, fontWeight: 600, marginRight: 4 }}>
+              ر.س
+            </span>
           </div>
-          <p style={{ fontSize: 11, color: "var(--text-muted)", paddingRight: 8, marginTop: 4 }}>
+          <p
+            style={{
+              fontSize: 11,
+              color: "var(--text-muted)",
+              paddingRight: 8,
+              marginTop: 4,
+            }}
+          >
             من الطلبات المعتمدة والمكتملة ({orders.length} طلب)
           </p>
         </div>
 
         <div className="finance-card stat-card-expense">
-          <div className="finance-card-accent" style={{ background: "#ef4444" }} />
+          <div
+            className="finance-card-accent"
+            style={{ background: "#ef4444" }}
+          />
           <div className="finance-card-label" style={{ paddingRight: 8 }}>
             <div className="flex items-center gap-2">
               <HiOutlineTrendingDown size={16} style={{ color: "#ef4444" }} />
               إجمالي المصروفات
             </div>
           </div>
-          <div className="finance-card-value" style={{ color: "#ef4444", paddingRight: 8 }}>
+          <div
+            className="finance-card-value"
+            style={{ color: "#ef4444", paddingRight: 8 }}
+          >
             {totalExpenses.toLocaleString()}
-            <span style={{ fontSize: 14, fontWeight: 600, marginRight: 4 }}>ر.س</span>
+            <span style={{ fontSize: 14, fontWeight: 600, marginRight: 4 }}>
+              ر.س
+            </span>
           </div>
-          <p style={{ fontSize: 11, color: "var(--text-muted)", paddingRight: 8, marginTop: 4 }}>
+          <p
+            style={{
+              fontSize: 11,
+              color: "var(--text-muted)",
+              paddingRight: 8,
+              marginTop: 4,
+            }}
+          >
             قيمة المخزون الحالية بسعر الشراء من الصين
           </p>
         </div>
 
-        <div className={`finance-card ${netBalance >= 0 ? "stat-card-balance-positive" : "stat-card-balance-negative"}`}>
-          <div className="finance-card-accent" style={{ background: netBalance >= 0 ? "#22c55e" : "#ef4444" }} />
+        <div
+          className={`finance-card ${
+            netBalance >= 0
+              ? "stat-card-balance-positive"
+              : "stat-card-balance-negative"
+          }`}
+        >
+          <div
+            className="finance-card-accent"
+            style={{ background: netBalance >= 0 ? "#22c55e" : "#ef4444" }}
+          />
           <div className="finance-card-label" style={{ paddingRight: 8 }}>
             <div className="flex items-center gap-2">
-              <HiOutlineCurrencyDollar size={16} style={{ color: netBalance >= 0 ? "#22c55e" : "#ef4444" }} />
+              <HiOutlineCurrencyDollar
+                size={16}
+                style={{ color: netBalance >= 0 ? "#22c55e" : "#ef4444" }}
+              />
               الرصيد النهائي
             </div>
           </div>
-          <div className="finance-card-value" style={{ color: netBalance >= 0 ? "#16a34a" : "#dc2626", paddingRight: 8 }}>
+          <div
+            className="finance-card-value"
+            style={{
+              color: netBalance >= 0 ? "#16a34a" : "#dc2626",
+              paddingRight: 8,
+            }}
+          >
             {netBalance >= 0 ? "+" : ""}
             {netBalance.toLocaleString()}
-            <span style={{ fontSize: 14, fontWeight: 600, marginRight: 4 }}>ر.س</span>
+            <span style={{ fontSize: 14, fontWeight: 600, marginRight: 4 }}>
+              ر.س
+            </span>
           </div>
-          <p style={{ fontSize: 11, color: "var(--text-muted)", paddingRight: 8, marginTop: 4 }}>
-            {netBalance >= 0 ? "✅ الإيرادات - قيمة المخزون" : "⚠️ قيمة المخزون أعلى من الإيرادات"}
+          <p
+            style={{
+              fontSize: 11,
+              color: "var(--text-muted)",
+              paddingRight: 8,
+              marginTop: 4,
+            }}
+          >
+            {netBalance >= 0
+              ? "✅ الإيرادات - قيمة المخزون"
+              : "⚠️ قيمة المخزون أعلى من الإيرادات"}
           </p>
         </div>
       </div>
@@ -199,15 +267,31 @@ export default function Purchases() {
             <tbody>
               {orders.map((order) => (
                 <tr key={order.id}>
-                  <td style={{ fontWeight: 700, color: "var(--text-primary)" }}>
+                  <td
+                    style={{
+                      fontWeight: 700,
+                      color: "var(--text-primary)",
+                    }}
+                  >
                     {order.engineerName || "عميل"}
                   </td>
                   <td>{order.items?.length || 0}</td>
-                  <td style={{ fontWeight: 700, color: "var(--gold-primary)" }}>
+                  <td
+                    style={{
+                      fontWeight: 700,
+                      color: "var(--gold-primary)",
+                    }}
+                  >
                     {getOrderTotal(order).toLocaleString()} ر.س
                   </td>
                   <td>
-                    <span className={order.status === "completed" ? "badge badge-info" : "badge badge-success"}>
+                    <span
+                      className={
+                        order.status === "completed"
+                          ? "badge badge-info"
+                          : "badge badge-success"
+                      }
+                    >
                       {order.status === "completed" ? "مكتمل" : "تمت الموافقة"}
                     </span>
                   </td>
@@ -223,4 +307,3 @@ export default function Purchases() {
     </div>
   );
 }
-
