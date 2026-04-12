@@ -332,7 +332,7 @@ export default function Orders() {
     <div className="page-stack animate-fade-in">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">إدارة الطلبات</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">إدارة الطلبات</h1>
           <p className="text-slate-400 text-sm">{orders.length} طلب</p>
         </div>
 
@@ -403,7 +403,7 @@ export default function Orders() {
             <tbody>
               {filteredOrders.map((order) => (
                 <tr key={order.id}>
-                  <td className="font-medium text-white">
+                  <td className="font-medium text-[var(--text-primary)]">
                     {order.engineerName || 'مهندس'}
                   </td>
 
@@ -566,10 +566,10 @@ export default function Orders() {
         <div className="modal-overlay" onClick={() => setSelectedOrder(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-white">تفاصيل الطلب</h2>
+              <h2 className="text-xl font-bold text-[var(--text-primary)]">تفاصيل الطلب</h2>
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="p-2 rounded-lg hover:bg-white/5 text-slate-400"
+                className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-slate-400"
               >
                 <HiOutlineX size={20} />
               </button>
@@ -578,7 +578,7 @@ export default function Orders() {
             <div className="flex flex-col gap-4">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">المهندس:</span>
-                <span className="text-white">{selectedOrder.engineerName}</span>
+                <span className="text-[var(--text-primary)]">{selectedOrder.engineerName}</span>
               </div>
 
               <div className="flex justify-between text-sm">
@@ -588,25 +588,25 @@ export default function Orders() {
 
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">التاريخ:</span>
-                <span className="text-white">{formatDate(selectedOrder.createdAt)}</span>
+                <span className="text-[var(--text-primary)]">{formatDate(selectedOrder.createdAt)}</span>
               </div>
 
               {selectedOrder.note && (
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-sm gap-3">
                   <span className="text-slate-400">ملاحظات:</span>
-                  <span className="text-white">{selectedOrder.note}</span>
+                  <span className="text-[var(--text-primary)] text-left">{selectedOrder.note}</span>
                 </div>
               )}
 
-              <div className="border-t border-white/5 pt-4 mt-2">
-                <h3 className="text-sm font-bold text-slate-300 mb-3">المنتجات المطلوبة</h3>
+              <div className="border-t border-black/5 dark:border-white/5 pt-4 mt-2">
+                <h3 className="text-sm font-bold text-[var(--text-secondary)] mb-3">المنتجات المطلوبة</h3>
                 <div className="flex flex-col gap-2">
                   {normalizeOrderItems(selectedOrder).map((item, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03]"
+                      className="flex items-center justify-between p-3 rounded-xl border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.03]"
                     >
-                      <span className="text-white text-sm">
+                      <span className="text-[var(--text-primary)] text-sm">
                         {item.productName || item.name || 'منتج'}
                       </span>
                       <span className="badge badge-info">
@@ -616,7 +616,7 @@ export default function Orders() {
                   ))}
 
                   {normalizeOrderItems(selectedOrder).length === 0 && (
-                    <div className="p-3 rounded-xl bg-white/[0.03] text-slate-400 text-sm text-center">
+                    <div className="p-3 rounded-xl border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.03] text-slate-400 text-sm text-center">
                       لا توجد منتجات داخل هذا الطلب
                     </div>
                   )}
