@@ -12,12 +12,14 @@ import {
 export default function Purchases() {
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
+  const [otherExpenses, setOtherExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
 
   async function fetchData() {
-    const [ordersSnap, productsSnap] = await Promise.all([
+    const [ordersSnap, productsSnap, otherExpensesSnap] = await Promise.all([
       getDocs(collection(db, "orders")),
       getDocs(collection(db, "products")),
+      getDocs(collection(db, "otherExpenses")),
     ]);
 
     return {
@@ -34,6 +36,7 @@ export default function Purchases() {
           return dateB - dateA;
         }),
       products: productsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      otherExpenses: otherExpensesSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
     };
   }
 
@@ -46,6 +49,7 @@ export default function Purchases() {
         if (!isMounted) return;
         setOrders(data.orders);
         setProducts(data.products);
+        setOtherExpenses(data.otherExpenses);
       } catch (error) {
         console.error(error);
         toast.error("حدث خطأ في جلب البيانات");
@@ -59,12 +63,39 @@ export default function Purchases() {
     };
   }, []);
 
-  const totalExpenses = products.reduce((sum, product) => {
-    const quantity = Number(product.quantity || 0);
+  // إجمالي مشتريات المخزون التراكمية
+  // مهم: الأفضل وجود حقل totalPurchasedQuantity أو initialQuantity لكل منتج
+  const totalInventoryExpenses = products.reduce((sum, product) => {
+    const purchasedQuantity = Number(
+      product.totalPurchasedQuantity ??
+        product.initialQuantity ??
+        product.purchasedQuantity ??
+        product.quantity ??
+        0
+    );
+
     const purchasePrice = Number(product.purchasePrice || 0);
-    return sum + quantity * purchasePrice;
+    return sum + purchasedQuantity * purchasePrice;
   }, 0);
 
+  // إجمالي المصروفات الأخرى
+  const totalOtherExpenses = otherExpenses.reduce((sum, expense) => {
+    return (
+      sum +
+      Number(
+        expense.amount ??
+          expense.value ??
+          expense.cost ??
+          expense.total ??
+          0
+      )
+    );
+  }, 0);
+
+  // إجمالي المصروفات = مشتريات المخزون + المصروفات الأخرى
+  const totalExpenses = totalInventoryExpenses + totalOtherExpenses;
+
+  // إجمالي الإيرادات = الطلبات المعتمدة/المكتملة بسعر البيع
   const totalRevenue = orders.reduce((sum, order) => {
     const orderRevenue = (order.items || []).reduce((itemSum, item) => {
       const product = products.find((p) => p.id === item.productId);
@@ -76,6 +107,7 @@ export default function Purchases() {
     return sum + orderRevenue;
   }, 0);
 
+  // الرصيد النهائي = الإيرادات - المصروفات
   const netBalance = totalRevenue - totalExpenses;
 
   const getOrderTotal = (order) => {
@@ -158,7 +190,7 @@ export default function Purchases() {
               marginTop: 4,
             }}
           >
-            من الطلبات المعتمدة والمكتملة ({orders.length} طلب)
+            مجموع الطلبات المعتمدة والمكتملة بسعر البيع
           </p>
         </div>
 
@@ -188,9 +220,10 @@ export default function Purchases() {
               color: "var(--text-muted)",
               paddingRight: 8,
               marginTop: 4,
+              lineHeight: 1.8,
             }}
           >
-            قيمة المخزون الحالية بسعر الشراء من الصين
+            مشتريات المخزون التراكمية + المصروفات الأخرى
           </p>
         </div>
 
@@ -233,12 +266,37 @@ export default function Purchases() {
               color: "var(--text-muted)",
               paddingRight: 8,
               marginTop: 4,
+              lineHeight: 1.8,
             }}
           >
-            {netBalance >= 0
-              ? "✅ الإيرادات - قيمة المخزون"
-              : "⚠️ قيمة المخزون أعلى من الإيرادات"}
+            الإيرادات - المصروفات
           </p>
+        </div>
+      </div>
+
+      <div className="glass-card" style={{ padding: 16 }}>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 16,
+            rowGap: 10,
+            color: "var(--text-muted)",
+            fontSize: 13,
+          }}
+        >
+          <span>
+            مشتريات المخزون:{" "}
+            <strong style={{ color: "var(--text-primary)" }}>
+              {totalInventoryExpenses.toLocaleString()} ر.س
+            </strong>
+          </span>
+          <span>
+            المصروفات الأخرى:{" "}
+            <strong style={{ color: "var(--text-primary)" }}>
+              {totalOtherExpenses.toLocaleString()} ر.س
+            </strong>
+          </span>
         </div>
       </div>
 
