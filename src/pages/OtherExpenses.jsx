@@ -60,10 +60,12 @@ export default function OtherExpenses() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!formData.title.trim()) {
       toast.error("يرجى إدخال اسم المصروف أو الفاتورة");
       return;
     }
+
     if (!formData.amount || Number(formData.amount) <= 0) {
       toast.error("يرجى إدخال مبلغ صحيح");
       return;
@@ -78,6 +80,7 @@ export default function OtherExpenses() {
         note: formData.note.trim(),
         createdAt: new Date().toISOString(),
       });
+
       toast.success("تم إضافة المصروف بنجاح");
       setShowModal(false);
       setFormData(emptyForm);
@@ -91,6 +94,7 @@ export default function OtherExpenses() {
 
   const handleDelete = async (expense) => {
     if (!window.confirm(`هل أنت متأكد من حذف "${expense.title}"؟`)) return;
+
     try {
       await deleteDoc(doc(db, "otherExpenses", expense.id));
       toast.success("تم حذف المصروف");
@@ -98,6 +102,182 @@ export default function OtherExpenses() {
     } catch {
       toast.error("حدث خطأ في حذف المصروف");
     }
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "-";
+    return new Date(dateStr).toLocaleDateString("ar-SA", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const getTypeLabel = (typeId) =>
+    EXPENSE_TYPES.find((t) => t.id === typeId)?.name || "أخرى";
+
+  const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+  const buildSingleExpensePrintHtml = (expense) => {
+    const amount = Number(expense.amount || 0);
+
+    return `
+      <html dir="rtl">
+        <head>
+          <meta charset="UTF-8" />
+          <title>مصروف ${expense.title || ""}</title>
+          <style>
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              padding: 24px;
+              direction: rtl;
+              font-family: Arial, sans-serif;
+              background: #ffffff;
+              color: #1f2937;
+            }
+            .expense-card {
+              max-width: 800px;
+              margin: 0 auto;
+              border: 1px solid #e5e7eb;
+              border-radius: 18px;
+              padding: 24px;
+              background: #fff;
+            }
+            .expense-header {
+              text-align: center;
+              border-bottom: 2px solid #f3f4f6;
+              padding-bottom: 16px;
+              margin-bottom: 18px;
+            }
+            .company-title {
+              font-size: 28px;
+              font-weight: 800;
+              color: #111827;
+              margin-bottom: 6px;
+            }
+            .expense-subtitle {
+              font-size: 14px;
+              color: #6b7280;
+              margin-bottom: 10px;
+            }
+            .expense-meta {
+              display: flex;
+              justify-content: center;
+              gap: 20px;
+              flex-wrap: wrap;
+              font-size: 13px;
+              color: #4b5563;
+            }
+            .expense-box {
+              background: #f9fafb;
+              border: 1px solid #e5e7eb;
+              border-radius: 12px;
+              padding: 14px;
+              margin-bottom: 14px;
+              font-size: 14px;
+            }
+            .expense-row {
+              display: flex;
+              justify-content: space-between;
+              gap: 12px;
+              padding: 12px 0;
+              border-bottom: 1px solid #f1f5f9;
+            }
+            .expense-row:last-child {
+              border-bottom: none;
+            }
+            .expense-label {
+              color: #6b7280;
+              font-weight: 700;
+            }
+            .expense-value {
+              color: #111827;
+              font-weight: 600;
+            }
+            .amount-box {
+              margin-top: 18px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              padding: 14px 16px;
+              border: 1px solid rgba(239,68,68,0.25);
+              background: rgba(239,68,68,0.08);
+              border-radius: 12px;
+              font-size: 16px;
+            }
+            .amount-box strong {
+              color: #ef4444;
+              font-size: 20px;
+            }
+            .expense-footer {
+              margin-top: 24px;
+              text-align: center;
+              padding-top: 12px;
+              border-top: 1px dashed #d1d5db;
+              color: #6b7280;
+              font-size: 13px;
+              font-weight: 700;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="expense-card">
+            <div class="expense-header">
+              <div class="company-title">شركة سعود العقارية</div>
+              <div class="expense-subtitle">سند مصروف / مصروفات أخرى</div>
+              <div class="expense-meta">
+                <span>التاريخ: ${formatDate(expense.createdAt)}</span>
+                <span>النوع: ${getTypeLabel(expense.type)}</span>
+              </div>
+            </div>
+
+            <div class="expense-box">
+              <div class="expense-row">
+                <span class="expense-label">اسم المصروف</span>
+                <span class="expense-value">${expense.title || "-"}</span>
+              </div>
+              <div class="expense-row">
+                <span class="expense-label">النوع</span>
+                <span class="expense-value">${getTypeLabel(expense.type)}</span>
+              </div>
+              <div class="expense-row">
+                <span class="expense-label">الملاحظات</span>
+                <span class="expense-value">${expense.note || "-"}</span>
+              </div>
+            </div>
+
+            <div class="amount-box">
+              <span>المبلغ</span>
+              <strong>${amount.toLocaleString()} ر.س</strong>
+            </div>
+
+            <div class="expense-footer">
+              شركة سعود العقارية
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+  };
+
+  const handlePrintSingleExpense = (expense) => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error("تعذر فتح نافذة الطباعة");
+      return;
+    }
+
+    printWindow.document.write(buildSingleExpensePrintHtml(expense));
+    printWindow.document.write(`
+      <script>
+        window.onload = function () {
+          window.print();
+          window.close();
+        };
+      </script>
+    `);
+    printWindow.document.close();
   };
 
   const handlePrintOtherExpenses = () => {
@@ -128,8 +308,6 @@ export default function OtherExpenses() {
         `;
       })
       .join("");
-
-    const total = expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
     printWindow.document.write(`
       <html dir="rtl">
@@ -202,7 +380,7 @@ export default function OtherExpenses() {
 
           <div class="total">
             <span>الإجمالي</span>
-            <strong>${total.toLocaleString()} ر.س</strong>
+            <strong>${totalExpenses.toLocaleString()} ر.س</strong>
           </div>
 
           <script>
@@ -217,20 +395,6 @@ export default function OtherExpenses() {
 
     printWindow.document.close();
   };
-
-  const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "-";
-    return new Date(dateStr).toLocaleDateString("ar-SA", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  const getTypeLabel = (typeId) =>
-    EXPENSE_TYPES.find((t) => t.id === typeId)?.name || "أخرى";
 
   if (loading) {
     return (
@@ -428,27 +592,51 @@ export default function OtherExpenses() {
                     {formatDate(expense.createdAt)}
                   </td>
                   <td>
-                    <button
-                      onClick={() => handleDelete(expense)}
-                      style={{
-                        padding: 7,
-                        borderRadius: 9,
-                        color: "#ef4444",
-                        border: "none",
-                        background: "transparent",
-                        cursor: "pointer",
-                        transition: "all .2s",
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background = "rgba(239,68,68,0.08)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
-                      title="حذف"
-                    >
-                      <HiOutlineTrash size={16} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handlePrintSingleExpense(expense)}
+                        style={{
+                          padding: 7,
+                          borderRadius: 9,
+                          color: "#2563eb",
+                          border: "none",
+                          background: "transparent",
+                          cursor: "pointer",
+                          transition: "all .2s",
+                        }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background = "rgba(37,99,235,0.08)")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = "transparent")
+                        }
+                        title="طباعة"
+                      >
+                        <HiOutlinePrinter size={16} />
+                      </button>
+
+                      <button
+                        onClick={() => handleDelete(expense)}
+                        style={{
+                          padding: 7,
+                          borderRadius: 9,
+                          color: "#ef4444",
+                          border: "none",
+                          background: "transparent",
+                          cursor: "pointer",
+                          transition: "all .2s",
+                        }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background = "rgba(239,68,68,0.08)")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = "transparent")
+                        }
+                        title="حذف"
+                      >
+                        <HiOutlineTrash size={16} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
