@@ -105,9 +105,9 @@ export default function Products() {
     };
   }, []);
 
-  const handleInitializePurchasedQuantities = async () => {
+  const handleRepairPurchasedQuantities = async () => {
     const confirmed = window.confirm(
-      "سيتم تثبيت إجمالي الكمية المشتراة الحالية لكل المنتجات الحالية مرة واحدة. هل تريدين المتابعة؟"
+      "سيتم إصلاح وتثبيت إجمالي الكمية المشتراة لكل المنتجات بحيث لا تكون أقل من الكمية الحالية. هل تريدين المتابعة؟"
     );
     if (!confirmed) return;
 
@@ -120,13 +120,28 @@ export default function Products() {
 
       snap.docs.forEach((productDoc) => {
         const data = productDoc.data();
-        const hasPurchasedQuantity =
-          data.totalPurchasedQuantity !== undefined &&
-          data.totalPurchasedQuantity !== null;
 
-        if (!hasPurchasedQuantity) {
+        const currentQuantity = Number(data.quantity || 0);
+        const existingPurchasedQuantity = Number(
+          data.totalPurchasedQuantity ??
+            data.initialQuantity ??
+            data.purchasedQuantity ??
+            0
+        );
+
+        const fixedPurchasedQuantity = Math.max(
+          existingPurchasedQuantity,
+          currentQuantity
+        );
+
+        const needsUpdate =
+          data.totalPurchasedQuantity === undefined ||
+          data.totalPurchasedQuantity === null ||
+          Number(data.totalPurchasedQuantity) !== fixedPurchasedQuantity;
+
+        if (needsUpdate) {
           batch.update(doc(db, "products", productDoc.id), {
-            totalPurchasedQuantity: Number(data.quantity || 0),
+            totalPurchasedQuantity: fixedPurchasedQuantity,
             updatedAt: new Date().toISOString(),
           });
           updatedCount += 1;
@@ -134,17 +149,17 @@ export default function Products() {
       });
 
       if (updatedCount === 0) {
-        toast("كل المنتجات مهيأة بالفعل");
+        toast("كل المنتجات مهيأة ومُصلحة بالفعل");
         setMigrating(false);
         return;
       }
 
       await batch.commit();
-      toast.success(`تم تثبيت ${updatedCount} منتج بنجاح`);
+      toast.success(`تم إصلاح ${updatedCount} منتج بنجاح`);
       await refreshProducts();
     } catch (error) {
       console.error(error);
-      toast.error("حدث خطأ أثناء تثبيت الكميات المشتراة");
+      toast.error("حدث خطأ أثناء إصلاح المصروفات");
     } finally {
       setMigrating(false);
     }
@@ -211,8 +226,10 @@ export default function Products() {
         const addedQuantity =
           newQuantity > oldCurrentQuantity ? newQuantity - oldCurrentQuantity : 0;
 
-        const updatedTotalPurchasedQuantity =
-          oldTotalPurchasedQuantity + addedQuantity;
+        const updatedTotalPurchasedQuantity = Math.max(
+          oldTotalPurchasedQuantity + addedQuantity,
+          newQuantity
+        );
 
         await updateDoc(doc(db, "products", editProduct.id), {
           ...baseProductData,
@@ -420,12 +437,12 @@ export default function Products() {
           </button>
 
           <button
-            onClick={handleInitializePurchasedQuantities}
+            onClick={handleRepairPurchasedQuantities}
             className="btn-secondary justify-center"
             type="button"
             disabled={migrating}
           >
-            {migrating ? "جاري التثبيت..." : "تثبيت المصروفات الحالية"}
+            {migrating ? "جاري الإصلاح..." : "إصلاح وتثبيت المصروفات"}
           </button>
 
           <button
