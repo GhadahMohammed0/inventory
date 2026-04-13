@@ -15,14 +15,15 @@ import {
   HiOutlineX,
   HiOutlineCurrencyDollar,
   HiOutlineDocumentText,
+  HiOutlinePrinter,
 } from "react-icons/hi";
 
 const EXPENSE_TYPES = [
-  { id: "invoice",   name: "فاتورة" },
-  { id: "shipping",  name: "شحن" },
-  { id: "customs",   name: "جمارك" },
-  { id: "salary",    name: "رواتب" },
-  { id: "other",     name: "أخرى" },
+  { id: "invoice", name: "فاتورة" },
+  { id: "shipping", name: "شحن" },
+  { id: "customs", name: "جمارك" },
+  { id: "salary", name: "رواتب" },
+  { id: "other", name: "أخرى" },
 ];
 
 const emptyForm = {
@@ -59,16 +60,22 @@ export default function OtherExpenses() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.title.trim()) { toast.error("يرجى إدخال اسم المصروف أو الفاتورة"); return; }
-    if (!formData.amount || Number(formData.amount) <= 0) { toast.error("يرجى إدخال مبلغ صحيح"); return; }
+    if (!formData.title.trim()) {
+      toast.error("يرجى إدخال اسم المصروف أو الفاتورة");
+      return;
+    }
+    if (!formData.amount || Number(formData.amount) <= 0) {
+      toast.error("يرجى إدخال مبلغ صحيح");
+      return;
+    }
 
     setSubmitting(true);
     try {
       await addDoc(collection(db, "otherExpenses"), {
-        title:     formData.title.trim(),
-        amount:    Number(formData.amount),
-        type:      formData.type,
-        note:      formData.note.trim(),
+        title: formData.title.trim(),
+        amount: Number(formData.amount),
+        type: formData.type,
+        note: formData.note.trim(),
         createdAt: new Date().toISOString(),
       });
       toast.success("تم إضافة المصروف بنجاح");
@@ -93,12 +100,132 @@ export default function OtherExpenses() {
     }
   };
 
+  const handlePrintOtherExpenses = () => {
+    if (!expenses.length) {
+      toast.error("لا توجد مصروفات للطباعة");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error("تعذر فتح نافذة الطباعة");
+      return;
+    }
+
+    const rows = expenses
+      .map((expense, index) => {
+        const amount = Number(expense.amount || 0);
+
+        return `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${expense.title || "-"}</td>
+            <td>${getTypeLabel(expense.type)}</td>
+            <td>${amount.toLocaleString()} ر.س</td>
+            <td>${expense.note || "-"}</td>
+            <td>${formatDate(expense.createdAt)}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const total = expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+    printWindow.document.write(`
+      <html dir="rtl">
+        <head>
+          <meta charset="UTF-8" />
+          <title>تقرير المصروفات الأخرى</title>
+          <style>
+            * { box-sizing: border-box; }
+            body {
+              font-family: Arial, sans-serif;
+              direction: rtl;
+              padding: 24px;
+              color: #222;
+              background: #fff;
+            }
+            h1 {
+              margin-bottom: 8px;
+              font-size: 28px;
+            }
+            p {
+              margin-bottom: 18px;
+              color: #666;
+              font-size: 13px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 10px;
+              text-align: right;
+              font-size: 13px;
+              vertical-align: middle;
+            }
+            th {
+              background: #f5f5f5;
+              font-weight: 700;
+            }
+            .total {
+              margin-top: 20px;
+              padding: 12px 16px;
+              border: 1px solid #ccc;
+              border-radius: 10px;
+              display: flex;
+              justify-content: space-between;
+              font-size: 16px;
+            }
+          </style>
+        </head>
+        <body>
+          <h1>تقرير المصروفات الأخرى</h1>
+          <p>شركة سعود العقارية</p>
+
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>اسم المصروف</th>
+                <th>النوع</th>
+                <th>المبلغ</th>
+                <th>ملاحظات</th>
+                <th>التاريخ</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+
+          <div class="total">
+            <span>الإجمالي</span>
+            <strong>${total.toLocaleString()} ر.س</strong>
+          </div>
+
+          <script>
+            window.onload = function () {
+              window.print();
+              window.close();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+  };
+
   const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "-";
     return new Date(dateStr).toLocaleDateString("ar-SA", {
-      year: "numeric", month: "short", day: "numeric",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
@@ -116,7 +243,7 @@ export default function OtherExpenses() {
 
   return (
     <div className="page-stack animate-fade-in">
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="page-header">
           <h1 style={{ color: "var(--text-primary)", fontSize: 24, fontWeight: 800 }}>
@@ -126,55 +253,108 @@ export default function OtherExpenses() {
             مصروفات إضافية مرتبطة بالمشتريات (فواتير، شحن، جمارك…)
           </p>
         </div>
-        <button
-          onClick={() => { setFormData(emptyForm); setShowModal(true); }}
-          className="btn-primary justify-center"
-          id="add-expense-btn"
-        >
-          <HiOutlinePlus size={18} />
-          إضافة مصروف
-        </button>
+
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            onClick={handlePrintOtherExpenses}
+            className="btn-secondary justify-center"
+            type="button"
+          >
+            <HiOutlinePrinter size={18} />
+            طباعة المصروفات الأخرى
+          </button>
+
+          <button
+            onClick={() => {
+              setFormData(emptyForm);
+              setShowModal(true);
+            }}
+            className="btn-primary justify-center"
+            id="add-expense-btn"
+          >
+            <HiOutlinePlus size={18} />
+            إضافة مصروف
+          </button>
+        </div>
       </div>
 
-      {/* ── Summary Card ── */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "18px 22px", borderRadius: 18,
-        background: "rgba(239,68,68,0.07)",
-        border: "1px solid rgba(239,68,68,0.2)",
-      }}>
+      {/* Summary Card */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "18px 22px",
+          borderRadius: 18,
+          background: "rgba(239,68,68,0.07)",
+          border: "1px solid rgba(239,68,68,0.2)",
+        }}
+      >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{
-            width: 46, height: 46, borderRadius: 13,
-            background: "rgba(239,68,68,0.12)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#ef4444",
-          }}>
+          <div
+            style={{
+              width: 46,
+              height: 46,
+              borderRadius: 13,
+              background: "rgba(239,68,68,0.12)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#ef4444",
+            }}
+          >
             <HiOutlineCurrencyDollar size={22} />
           </div>
           <div>
-            <p style={{ color: "var(--text-muted)", fontSize: 13 }}>إجمالي المصروفات الأخرى</p>
-            <p style={{ color: "#ef4444", fontSize: 26, fontWeight: 800, lineHeight: 1.2 }}>
+            <p style={{ color: "var(--text-muted)", fontSize: 13 }}>
+              إجمالي المصروفات الأخرى
+            </p>
+            <p
+              style={{
+                color: "#ef4444",
+                fontSize: 26,
+                fontWeight: 800,
+                lineHeight: 1.2,
+              }}
+            >
               {totalExpenses.toLocaleString()}
-              <span style={{ fontSize: 14, fontWeight: 600, marginRight: 4 }}>ر.س</span>
+              <span style={{ fontSize: 14, fontWeight: 600, marginRight: 4 }}>
+                ر.س
+              </span>
             </p>
           </div>
         </div>
-        <div style={{
-          padding: "6px 14px", borderRadius: 99,
-          background: "rgba(239,68,68,0.12)",
-          color: "#ef4444", fontWeight: 700, fontSize: 14,
-        }}>
+        <div
+          style={{
+            padding: "6px 14px",
+            borderRadius: 99,
+            background: "rgba(239,68,68,0.12)",
+            color: "#ef4444",
+            fontWeight: 700,
+            fontSize: 14,
+          }}
+        >
           {expenses.length} سجل
         </div>
       </div>
 
-      {/* ── Table ── */}
+      {/* Table */}
       {expenses.length === 0 ? (
         <div className="glass-card p-12 text-center">
-          <HiOutlineReceiptTax size={48} style={{ color: "var(--text-muted)", margin: "0 auto 12px" }} />
-          <p style={{ color: "var(--text-muted)", fontSize: 16 }}>لا توجد مصروفات مسجلة بعد</p>
-          <p style={{ color: "var(--text-placeholder)", fontSize: 13, marginTop: 6 }}>
+          <HiOutlineReceiptTax
+            size={48}
+            style={{ color: "var(--text-muted)", margin: "0 auto 12px" }}
+          />
+          <p style={{ color: "var(--text-muted)", fontSize: 16 }}>
+            لا توجد مصروفات مسجلة بعد
+          </p>
+          <p
+            style={{
+              color: "var(--text-placeholder)",
+              fontSize: 13,
+              marginTop: 6,
+            }}
+          >
             أضف فاتورة أو مصروف لتظهر هنا وتُحتسب في لوحة التحكم
           </p>
         </div>
@@ -196,42 +376,75 @@ export default function OtherExpenses() {
                 <tr key={expense.id}>
                   <td>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{
-                        width: 36, height: 36, borderRadius: 10,
-                        background: "rgba(239,68,68,0.1)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        color: "#ef4444", flexShrink: 0,
-                      }}>
+                      <div
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 10,
+                          background: "rgba(239,68,68,0.1)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#ef4444",
+                          flexShrink: 0,
+                        }}
+                      >
                         <HiOutlineDocumentText size={17} />
                       </div>
-                      <p style={{ color: "var(--text-primary)", fontWeight: 700 }}>{expense.title}</p>
+                      <p style={{ color: "var(--text-primary)", fontWeight: 700 }}>
+                        {expense.title}
+                      </p>
                     </div>
                   </td>
                   <td>
-                    <span style={{
-                      padding: "3px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700,
-                      background: "rgba(201,168,76,0.12)", color: "var(--gold-primary)",
-                    }}>
+                    <span
+                      style={{
+                        padding: "3px 12px",
+                        borderRadius: 99,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        background: "rgba(201,168,76,0.12)",
+                        color: "var(--gold-primary)",
+                      }}
+                    >
                       {getTypeLabel(expense.type)}
                     </span>
                   </td>
                   <td style={{ color: "#ef4444", fontWeight: 800, fontSize: 16 }}>
                     {(expense.amount || 0).toLocaleString()} ر.س
                   </td>
-                  <td style={{ color: "var(--text-muted)", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <td
+                    style={{
+                      color: "var(--text-muted)",
+                      maxWidth: 180,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {expense.note || "-"}
                   </td>
-                  <td style={{ color: "var(--text-muted)" }}>{formatDate(expense.createdAt)}</td>
+                  <td style={{ color: "var(--text-muted)" }}>
+                    {formatDate(expense.createdAt)}
+                  </td>
                   <td>
                     <button
                       onClick={() => handleDelete(expense)}
                       style={{
-                        padding: 7, borderRadius: 9, color: "#ef4444",
-                        border: "none", background: "transparent",
-                        cursor: "pointer", transition: "all .2s",
+                        padding: 7,
+                        borderRadius: 9,
+                        color: "#ef4444",
+                        border: "none",
+                        background: "transparent",
+                        cursor: "pointer",
+                        transition: "all .2s",
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = "rgba(239,68,68,0.08)"}
-                      onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background = "rgba(239,68,68,0.08)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = "transparent")
+                      }
                       title="حذف"
                     >
                       <HiOutlineTrash size={16} />
@@ -244,48 +457,83 @@ export default function OtherExpenses() {
         </div>
       )}
 
-      {/* ── Add Expense Modal ── */}
+      {/* Add Expense Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 480 }}
+          >
             <div className="mb-6 flex items-center justify-between">
-              <h2 style={{ color: "var(--text-primary)", fontWeight: 800, fontSize: 20 }}>
+              <h2
+                style={{
+                  color: "var(--text-primary)",
+                  fontWeight: 800,
+                  fontSize: 20,
+                }}
+              >
                 إضافة مصروف جديد
               </h2>
               <button
                 onClick={() => setShowModal(false)}
-                style={{ padding: 8, borderRadius: 9, border: "none", background: "var(--bg-surface-2)", cursor: "pointer", color: "var(--text-muted)" }}
+                style={{
+                  padding: 8,
+                  borderRadius: 9,
+                  border: "none",
+                  background: "var(--bg-surface-2)",
+                  cursor: "pointer",
+                  color: "var(--text-muted)",
+                }}
               >
                 <HiOutlineX size={20} />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              {/* Title */}
               <div>
-                <label style={{ color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>
+                <label
+                  style={{
+                    color: "var(--text-secondary)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    display: "block",
+                    marginBottom: 6,
+                  }}
+                >
                   اسم المصروف أو الفاتورة *
                 </label>
                 <input
                   type="text"
                   value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
                   className="input-field"
                   placeholder="مثال: فاتورة شحن من الصين، رسوم جمارك..."
                   id="expense-title"
                 />
               </div>
 
-              {/* Amount + Type */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label style={{ color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>
+                  <label
+                    style={{
+                      color: "var(--text-secondary)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 6,
+                    }}
+                  >
                     المبلغ (ر.س) *
                   </label>
                   <input
                     type="number"
                     value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, amount: e.target.value })
+                    }
                     className="input-field"
                     placeholder="0"
                     min="0"
@@ -294,30 +542,51 @@ export default function OtherExpenses() {
                   />
                 </div>
                 <div>
-                  <label style={{ color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>
+                  <label
+                    style={{
+                      color: "var(--text-secondary)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 6,
+                    }}
+                  >
                     النوع
                   </label>
                   <select
                     value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, type: e.target.value })
+                    }
                     className="input-field"
                     id="expense-type"
                   >
                     {EXPENSE_TYPES.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              {/* Note */}
               <div>
-                <label style={{ color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>
+                <label
+                  style={{
+                    color: "var(--text-secondary)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    display: "block",
+                    marginBottom: 6,
+                  }}
+                >
                   ملاحظات (اختياري)
                 </label>
                 <textarea
                   value={formData.note}
-                  onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, note: e.target.value })
+                  }
                   className="input-field resize-none"
                   rows="2"
                   placeholder="أي تفاصيل إضافية..."
@@ -325,16 +594,24 @@ export default function OtherExpenses() {
                 />
               </div>
 
-              {/* Preview */}
               {formData.amount && Number(formData.amount) > 0 && (
-                <div style={{
-                  background: "rgba(239,68,68,0.07)",
-                  border: "1px solid rgba(239,68,68,0.2)",
-                  borderRadius: 10, padding: "10px 14px",
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                }}>
-                  <span style={{ color: "var(--text-muted)", fontSize: 13 }}>سيُضاف للمصروفات</span>
-                  <span style={{ color: "#ef4444", fontWeight: 800, fontSize: 15 }}>
+                <div
+                  style={{
+                    background: "rgba(239,68,68,0.07)",
+                    border: "1px solid rgba(239,68,68,0.2)",
+                    borderRadius: 10,
+                    padding: "10px 14px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span style={{ color: "var(--text-muted)", fontSize: 13 }}>
+                    سيُضاف للمصروفات
+                  </span>
+                  <span
+                    style={{ color: "#ef4444", fontWeight: 800, fontSize: 15 }}
+                  >
                     {Number(formData.amount).toLocaleString()} ر.س
                   </span>
                 </div>
