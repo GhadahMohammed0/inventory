@@ -1,17 +1,13 @@
 import { useEffect, useState } from "react";
 import {
   collection,
-  doc,
   getDocs,
-  updateDoc,
-  deleteDoc,
 } from "firebase/firestore";
 import toast from "react-hot-toast";
 import {
   HiOutlineDocumentText,
   HiOutlineEye,
   HiOutlinePrinter,
-  HiOutlineTrash,
   HiOutlineX,
 } from "react-icons/hi";
 import { db } from "../firebase";
@@ -86,33 +82,6 @@ export default function Receipts() {
       isMounted = false;
     };
   }, []);
-
-  const handleDeleteReceipt = async (receipt) => {
-    const confirmed = window.confirm(
-      `هل أنت متأكد من حذف الفاتورة رقم "${receipt.receiptNumber}"؟`
-    );
-    if (!confirmed) return;
-
-    try {
-      await deleteDoc(doc(db, "receipts", receipt.id));
-
-      if (receipt.orderId) {
-        await updateDoc(doc(db, "orders", receipt.orderId), {
-          status: "approved",
-        });
-      }
-
-      if (showReceipt?.id === receipt.id) {
-        setShowReceipt(null);
-      }
-
-      toast.success("تم حذف الفاتورة بنجاح");
-      await refreshData();
-    } catch (error) {
-      console.error(error);
-      toast.error("حدث خطأ أثناء حذف الفاتورة");
-    }
-  };
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "-";
@@ -526,23 +495,6 @@ export default function Receipts() {
                         >
                           <HiOutlinePrinter size={17} />
                         </button>
-
-                        {isAdmin && (
-                          <button
-                            onClick={() => handleDeleteReceipt(receipt)}
-                            style={{
-                              padding: 7,
-                              borderRadius: 9,
-                              color: "#ef4444",
-                              border: "none",
-                              background: "transparent",
-                              cursor: "pointer",
-                            }}
-                            title="حذف"
-                          >
-                            <HiOutlineTrash size={17} />
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>
