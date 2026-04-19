@@ -55,6 +55,39 @@ export default function Orders() {
     }));
   };
 
+  const getApprovalDate = (order) => {
+    const value = order?.approvedAt || order?.acceptedAt || null;
+    if (!value) return null;
+
+    if (typeof value?.toDate === 'function') {
+      return value.toDate();
+    }
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const isOrderLocked = (order) => {
+    if (!(order.status === 'approved' || order.status === 'completed')) return false;
+
+    const approvalDate = getApprovalDate(order);
+    if (!approvalDate) return false;
+
+    const now = new Date();
+    const diffMs = now - approvalDate;
+    const lockAfterMs = 48 * 60 * 60 * 1000;
+
+    return diffMs >= lockAfterMs;
+  };
+
+  const canDeleteOrder = (order) => {
+    return !isOrderLocked(order);
+  };
+
+  const canRejectApprovedOrder = (order) => {
+    return !isOrderLocked(order);
+  };
+
   const fetchOrders = async () => {
     try {
       const snap = await getDocs(collection(db, 'orders'));
@@ -194,6 +227,7 @@ export default function Orders() {
       await updateDoc(doc(db, 'orders', order.id), {
         status: 'approved',
         updatedAt: new Date().toISOString(),
+        approvedAt: new Date().toISOString(),
         items: normalizedItems,
         receiptId,
       });
@@ -208,6 +242,11 @@ export default function Orders() {
 
   const handleReject = async (order) => {
     try {
+      if (isOrderLocked(order)) {
+        toast.error('لا يمكن تعديل الطلب بعد مرور 48 ساعة من الموافقة');
+        return;
+      }
+
       if (order.status === 'approved' || order.status === 'completed') {
         await restoreOrderStock(order);
         await deleteRelatedReceipts(order.id);
@@ -227,6 +266,11 @@ export default function Orders() {
   };
 
   const handleDeleteOrder = async (order) => {
+    if (isOrderLocked(order)) {
+      toast.error('لا يمكن حذف الطلب بعد مرور 48 ساعة من الموافقة');
+      return;
+    }
+
     const confirmed = window.confirm(
       `هل أنت متأكد من حذف طلب "${order.engineerName || 'مهندس'}"؟`
     );
@@ -267,6 +311,14 @@ export default function Orders() {
           items: normalizeOrderItems(data),
         };
       });
+
+      const lockedOrders = ordersData.filter((order) => isOrderLocked(order));
+
+      if (lockedOrders.length > 0) {
+        toast.error('يوجد طلبات مثبتة بعد 48 ساعة، احذفي الطلبات غير المثبتة فقط');
+        setDeleting(false);
+        return;
+      }
 
       for (const order of ordersData) {
         if (order.status === 'approved' || order.status === 'completed') {
@@ -401,74 +453,87 @@ export default function Orders() {
               </tr>
             </thead>
             <tbody>
-              {filteredOrders.map((order) => (
-                <tr key={order.id}>
-                  <td className="font-medium text-[var(--text-primary)]">
-                    {order.engineerName || 'مهندس'}
-                  </td>
+              {filteredOrders.map((order) => {
+                const locked = isOrderLocked(order);
 
-                  <td>
-                    <button
-                      onClick={() => setSelectedOrder(order)}
-                      className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
-                    >
-                      <HiOutlineEye size={14} />
-                      {normalizeOrderItems(order).length || 0} منتج
-                    </button>
-                  </td>
-
-                  <td className="text-slate-400">{formatDate(order.createdAt)}</td>
-                  <td>{getStatusBadge(order.status)}</td>
-
-                  <td className="text-slate-400 max-w-[150px] truncate">
-                    {order.note || '-'}
-                  </td>
-
-                  {isAdmin && (
-                    <td>
-                      <div className="flex items-center gap-2">
-                        {(!order.status || order.status === 'pending') && (
-                          <>
-                            <button
-                              onClick={() => handleApprove(order)}
-                              className="p-2 rounded-lg hover:bg-green-500/10 text-green-400 transition-colors"
-                              title="موافقة"
-                            >
-                              <HiOutlineCheck size={16} />
-                            </button>
-
-                            <button
-                              onClick={() => handleReject(order)}
-                              className="p-2 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors"
-                              title="رفض"
-                            >
-                              <HiOutlineX size={16} />
-                            </button>
-                          </>
-                        )}
-
-                        {(order.status === 'approved' || order.status === 'completed') && (
-                          <button
-                            onClick={() => handleReject(order)}
-                            className="p-2 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors"
-                            title="إلغاء الموافقة / رفض"
-                          >
-                            <HiOutlineX size={16} />
-                          </button>
-                        )}
-
-                        <button
-                          onClick={() => handleDeleteOrder(order)}
-                          className="p-2 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors"
-                          title="حذف الطلب"
-                        >
-                          <HiOutlineTrash size={16} />
-                        </button>
-                      </div>
+                return (
+                  <tr key={order.id}>
+                    <td className="font-medium text-[var(--text-primary)]">
+                      {order.engineerName || 'مهندس'}
                     </td>
-                  )}
-                </tr>
-              ))}
+
+                    <td>
+                      <button
+                        onClick={() => setSelectedOrder(order)}
+                        className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                      >
+                        <HiOutlineEye size={14} />
+                        {normalizeOrderItems(order).length || 0} منتج
+                      </button>
+                    </td>
+
+                    <td className="text-slate-400">{formatDate(order.createdAt)}</td>
+                    <td>{getStatusBadge(order.status)}</td>
+
+                    <td className="text-slate-400 max-w-[150px] truncate">
+                      {order.note || '-'}
+                    </td>
+
+                    {isAdmin && (
+                      <td>
+                        <div className="flex items-center gap-2">
+                          {(!order.status || order.status === 'pending') && (
+                            <>
+                              <button
+                                onClick={() => handleApprove(order)}
+                                className="p-2 rounded-lg hover:bg-green-500/10 text-green-400 transition-colors"
+                                title="موافقة"
+                              >
+                                <HiOutlineCheck size={16} />
+                              </button>
+
+                              <button
+                                onClick={() => handleReject(order)}
+                                className="p-2 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors"
+                                title="رفض"
+                              >
+                                <HiOutlineX size={16} />
+                              </button>
+                            </>
+                          )}
+
+                          {(order.status === 'approved' || order.status === 'completed') &&
+                            canRejectApprovedOrder(order) && (
+                              <button
+                                onClick={() => handleReject(order)}
+                                className="p-2 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors"
+                                title="إلغاء الموافقة / رفض"
+                              >
+                                <HiOutlineX size={16} />
+                              </button>
+                            )}
+
+                          {canDeleteOrder(order) && (
+                            <button
+                              onClick={() => handleDeleteOrder(order)}
+                              className="p-2 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors"
+                              title="حذف الطلب"
+                            >
+                              <HiOutlineTrash size={16} />
+                            </button>
+                          )}
+
+                          {locked && (
+                            <span className="text-xs text-slate-500">
+                              الطلب مثبت
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -591,6 +656,15 @@ export default function Orders() {
                 <span className="text-[var(--text-primary)]">{formatDate(selectedOrder.createdAt)}</span>
               </div>
 
+              {(selectedOrder.status === 'approved' || selectedOrder.status === 'completed') && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">تاريخ الموافقة:</span>
+                  <span className="text-[var(--text-primary)]">
+                    {formatDate(selectedOrder.approvedAt || selectedOrder.acceptedAt)}
+                  </span>
+                </div>
+              )}
+
               {selectedOrder.note && (
                 <div className="flex justify-between text-sm gap-3">
                   <span className="text-slate-400">ملاحظات:</span>
@@ -629,4 +703,3 @@ export default function Orders() {
     </div>
   );
 }
-
