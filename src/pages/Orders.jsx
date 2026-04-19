@@ -67,11 +67,17 @@ export default function Orders() {
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   };
 
+  const isApprovedStatus = (order) => {
+    return order?.status === 'approved' || order?.status === 'completed';
+  };
+
   const isOrderLocked = (order) => {
-    if (!(order.status === 'approved' || order.status === 'completed')) return false;
+    if (!isApprovedStatus(order)) return false;
 
     const approvalDate = getApprovalDate(order);
-    if (!approvalDate) return false;
+
+    // أي طلب قديم معتمد وما عنده approvedAt يعتبر مثبت تلقائيًا
+    if (!approvalDate) return true;
 
     const now = new Date();
     const diffMs = now - approvalDate;
@@ -205,7 +211,7 @@ export default function Orders() {
 
   const handleApprove = async (order) => {
     try {
-      if (order.status === 'approved' || order.status === 'completed') {
+      if (isApprovedStatus(order)) {
         toast('الطلب معتمد بالفعل');
         return;
       }
@@ -247,7 +253,7 @@ export default function Orders() {
         return;
       }
 
-      if (order.status === 'approved' || order.status === 'completed') {
+      if (isApprovedStatus(order)) {
         await restoreOrderStock(order);
         await deleteRelatedReceipts(order.id);
       }
@@ -277,7 +283,7 @@ export default function Orders() {
     if (!confirmed) return;
 
     try {
-      if (order.status === 'approved' || order.status === 'completed') {
+      if (isApprovedStatus(order)) {
         await restoreOrderStock(order);
       }
 
@@ -315,13 +321,13 @@ export default function Orders() {
       const lockedOrders = ordersData.filter((order) => isOrderLocked(order));
 
       if (lockedOrders.length > 0) {
-        toast.error('يوجد طلبات مثبتة بعد 48 ساعة، احذفي الطلبات غير المثبتة فقط');
+        toast.error('يوجد طلبات مثبتة، لا يمكن حذف الكل');
         setDeleting(false);
         return;
       }
 
       for (const order of ordersData) {
-        if (order.status === 'approved' || order.status === 'completed') {
+        if (isApprovedStatus(order)) {
           await restoreOrderStock(order);
         }
       }
@@ -360,6 +366,8 @@ export default function Orders() {
   const formatDate = (dateValue) => {
     if (!dateValue) return '-';
     const date = dateValue.toDate ? dateValue.toDate() : new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return '-';
+
     return date.toLocaleDateString('ar-SA', {
       year: 'numeric',
       month: 'short',
@@ -502,16 +510,15 @@ export default function Orders() {
                             </>
                           )}
 
-                          {(order.status === 'approved' || order.status === 'completed') &&
-                            canRejectApprovedOrder(order) && (
-                              <button
-                                onClick={() => handleReject(order)}
-                                className="p-2 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors"
-                                title="إلغاء الموافقة / رفض"
-                              >
-                                <HiOutlineX size={16} />
-                              </button>
-                            )}
+                          {isApprovedStatus(order) && canRejectApprovedOrder(order) && (
+                            <button
+                              onClick={() => handleReject(order)}
+                              className="p-2 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors"
+                              title="إلغاء الموافقة / رفض"
+                            >
+                              <HiOutlineX size={16} />
+                            </button>
+                          )}
 
                           {canDeleteOrder(order) && (
                             <button
@@ -656,11 +663,13 @@ export default function Orders() {
                 <span className="text-[var(--text-primary)]">{formatDate(selectedOrder.createdAt)}</span>
               </div>
 
-              {(selectedOrder.status === 'approved' || selectedOrder.status === 'completed') && (
+              {isApprovedStatus(selectedOrder) && (
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-400">تاريخ الموافقة:</span>
                   <span className="text-[var(--text-primary)]">
-                    {formatDate(selectedOrder.approvedAt || selectedOrder.acceptedAt)}
+                    {selectedOrder.approvedAt || selectedOrder.acceptedAt
+                      ? formatDate(selectedOrder.approvedAt || selectedOrder.acceptedAt)
+                      : 'طلب قديم معتمد'}
                   </span>
                 </div>
               )}
